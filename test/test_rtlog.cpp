@@ -6,7 +6,9 @@ namespace rtlog
 
 namespace test
 {
-// TODO Rip this stuff out and templatize it
+
+std::atomic<std::size_t> gSequenceNumber{ 0 };
+
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
 constexpr auto MAX_NUM_LOG_MESSAGES = 100;
 
@@ -67,14 +69,14 @@ struct ExampleLogData
 };
 
 
-void ExamplePrintMessage(const ExampleLogData& data, const char* message)
+void ExamplePrintMessage(const ExampleLogData& data, size_t sequenceNumber, const char* message)
 {
-    printf("[%s] (%s): %s\n", 
+    printf("[%s] (%s) {%lu}: %s\n", 
         rtlog::test::to_string(data.level), 
         rtlog::test::to_string(data.region), 
+        sequenceNumber, 
         message);
 }
-
 
 }
 }
@@ -89,12 +91,11 @@ TEST_CASE("Dummy test")
 
 TEST_CASE("Test rtlog")
 {
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH> logger;
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, world!");
     logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
     logger.Log({ExampleLogLevel::Error, ExampleLogRegion::Audio}, "Hello, world!");
-
 
     logger.ProcessLog(ExamplePrintMessage);
     logger.ProcessLog(ExamplePrintMessage);

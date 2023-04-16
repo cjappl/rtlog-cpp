@@ -12,10 +12,12 @@
 namespace rtlog 
 {
 
-
 template <typename LogData, 
           size_t MaxNumMessages, 
-          size_t MaxMessageLength>
+          size_t MaxMessageLength,
+          std::atomic<std::size_t>& SequenceNumber
+          >
+
 class Logger
 {
 public:
@@ -23,13 +25,14 @@ public:
     {
         InternalLogData dataToQueue;
         dataToQueue.mLogData = inputData;
+        dataToQueue.mSequenceNumber = SequenceNumber++;
 
         va_list args;
         va_start(args, format);
         vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
         va_end(args);
 
-        bool result = mQueue.try_enqueue(dataToQueue);
+        bool result = mQueue.try_enqueue(std::move(dataToQueue));
         assert(result); // If you're hitting this often, your queue is too small
     }
 
@@ -39,7 +42,7 @@ public:
         InternalLogData value;
         while (mQueue.try_dequeue(value)) 
         {
-            printLogFn(value.mLogData, value.mMessage.data());
+            printLogFn(value.mLogData, value.mSequenceNumber, value.mMessage.data());
         }
     }
 
@@ -47,10 +50,11 @@ private:
     struct InternalLogData
     {
         LogData mLogData;
+        size_t mSequenceNumber;
         std::array<char, MaxMessageLength> mMessage;
     };
 
     moodycamel::ReaderWriterQueue<InternalLogData> mQueue{ MaxNumMessages };
 };
 
-}
+} // namespace rtlog
