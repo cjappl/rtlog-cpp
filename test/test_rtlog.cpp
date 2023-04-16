@@ -1,7 +1,86 @@
 #include <doctest/doctest.h>
 #include <rtlog/rtlog.h>
 
-using namespace rtlog;
+namespace rtlog
+{
+
+namespace test
+{
+// TODO Rip this stuff out and templatize it
+constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
+constexpr auto MAX_NUM_LOG_MESSAGES = 100;
+
+enum class ExampleLogLevel
+{
+    Debug,
+    Info,
+    Warning,
+    Error
+};
+
+const char* to_string(ExampleLogLevel level)
+{
+    switch (level)
+    {
+    case ExampleLogLevel::Debug:
+        return "Debug";
+    case ExampleLogLevel::Info:
+        return "Info";
+    case ExampleLogLevel::Warning:
+        return "Warning";
+    case ExampleLogLevel::Error:
+        return "Error";
+    default:
+        return "Unknown";
+    }
+}
+
+enum class ExampleLogRegion
+{
+    Engine,
+    Game,
+    Network,
+    Audio
+};
+
+const char* to_string(ExampleLogRegion region)
+{
+    switch (region)
+    {
+    case ExampleLogRegion::Engine:
+        return "Engine";
+    case ExampleLogRegion::Game:
+        return "Game";
+    case ExampleLogRegion::Network:
+        return "Network";
+    case ExampleLogRegion::Audio:
+        return "Audio";
+    default:
+        return "Unknown";
+    }
+}
+
+struct ExampleLogData
+{
+    ExampleLogLevel level;
+    ExampleLogRegion region;
+};
+
+
+void ExamplePrintMessage(const ExampleLogData& data, const char* message)
+{
+    printf("[%s] (%s): %s\n", 
+        rtlog::test::to_string(data.level), 
+        rtlog::test::to_string(data.region), 
+        message);
+}
+
+
+}
+}
+
+using namespace rtlog::test;
+
 
 TEST_CASE("Dummy test")
 {
@@ -10,14 +89,15 @@ TEST_CASE("Dummy test")
 
 TEST_CASE("Test rtlog")
 {
-    rtlog::Logger logger;
-    logger.Log(ExampleLogLevel::Debug, ExampleLogRegion::Engine, "Hello, world!");
-    logger.Log(ExampleLogLevel::Info, ExampleLogRegion::Game, "Hello, world!");
-    logger.Log(ExampleLogLevel::Warning, ExampleLogRegion::Network, "Hello, world!");
-    logger.Log(ExampleLogLevel::Error, ExampleLogRegion::Audio, "Hello, world!");
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH> logger;
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, world!");
+    logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
+    logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
+    logger.Log({ExampleLogLevel::Error, ExampleLogRegion::Audio}, "Hello, world!");
 
-    logger.ProcessLog();
-    logger.ProcessLog();
-    logger.ProcessLog();
-    logger.ProcessLog();
+
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
 }
