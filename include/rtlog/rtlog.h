@@ -11,6 +11,10 @@
 #include <cstdio>
 #include <thread>
 
+#ifdef RTLOG_HAS_PTHREADS
+#include <pthread.h>
+#endif
+
 #include <readerwriterqueue.h>
 #include <stb_sprintf.h>
 
@@ -101,6 +105,9 @@ public:
 
     void ThreadMain()
     {
+#ifdef RTLOG_HAS_PTHREADS
+        pthread_setname_np("rtlogthread");
+#endif
         while (mShouldRun.load())
         {
 

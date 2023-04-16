@@ -108,6 +108,23 @@ public:
 
 static PrintMessageFunctor ExamplePrintMessage("everlog.txt");
 
+template <typename LoggerType>
+void RealtimeBusyWait(int milliseconds, LoggerType& logger) 
+{
+    logger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Engine }, "Realtime thread is busy waiting for %d milliseconds", milliseconds);
+    auto start = std::chrono::high_resolution_clock::now();
+    while (true) 
+    {
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+        if (elapsed.count() >= milliseconds) 
+        {
+            logger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Engine }, "Done!!");
+            break;
+        }
+    }
+}
+
 }
 
 using namespace everlog;
@@ -116,28 +133,42 @@ std::atomic<bool> gRunning{ true };
 
 int main(int argc, char** argv)
 {
+#ifndef RTLOG_HAS_PTHREADS
+    pthread_setname_np("MainThread");
+#endif
+
+    // log hello from main thread
+    ExamplePrintMessage({ ExampleLogLevel::Info, ExampleLogRegion::Network }, ++gSequenceNumber, "Hello from main thread!");
+
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> realtimeLogger;
 
     rtlog::ScopedLogThread thread(realtimeLogger, ExamplePrintMessage, std::chrono::milliseconds(10));
 
     std::thread realtimeThread { [&realtimeLogger]() {
+#ifndef RTLOG_HAS_PTHREADS
+        pthread_setname_np("RealtimeAudioThread");
+#endif
         while (gRunning)
         {
-            for (int i = 0; i < 100; i++)
+            // count down from 100 to 0
+            for (int i = 99; i >= 0; i--)
             {
                 realtimeLogger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Audio }, "Hello %d from rt-thread", i);
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                RealtimeBusyWait(10, realtimeLogger);
             }
         }
     } };
 
-    std::thread nonRealtimeThread { [&realtimeLogger]() {
+    std::thread nonRealtimeThread { []() {
+#ifndef RTLOG_HAS_PTHREADS
+        pthread_setname_np("NetworkThread");
+#endif
         while (gRunning)
         {
             for (int i = 0; i < 100; i++)
             {
-                ExamplePrintMessage({ ExampleLogLevel::Debug, ExampleLogRegion::Audio }, ++gSequenceNumber, "Hello %d from non-rt-thread", i);
-                std::this_thread::sleep_for(std::chrono::milliseconds(750));
+                ExamplePrintMessage({ ExampleLogLevel::Info, ExampleLogRegion::Network }, ++gSequenceNumber, "Hello %d from non-rt-thread Network", i);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
     } };
