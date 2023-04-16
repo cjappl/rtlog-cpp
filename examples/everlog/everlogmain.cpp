@@ -129,6 +129,7 @@ void RealtimeBusyWait(int milliseconds, LoggerType& logger)
 
 #ifdef RTLOG_HAS_PTHREADS
 
+// TODO: dtrace
 pid_t get_thread_id(pthread_t thread) {
     uint64_t thread_id;
     pthread_threadid_np(thread, &thread_id);
@@ -141,6 +142,17 @@ pid_t get_thread_id(pthread_t thread) {
 using namespace everlog;
 
 std::atomic<bool> gRunning{ true };
+static rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> gRealtimeLogger;
+
+#define EVR_LOG_DEBUG(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Debug, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_INFO(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Info, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_WARNING(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Warning, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_CRITICAL(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Critical, Region}, ++gSequenceNumber, __VA_ARGS__)
+
+#define EVR_RTLOG_DEBUG(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Debug, Region}, __VA_ARGS__)
+#define EVR_RTLOG_INFO(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Info, Region}, __VA_ARGS__)
+#define EVR_RTLOG_WARNING(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Warning, Region}, __VA_ARGS__)
+#define EVR_RTLOG_CRITICAL(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Critical, Region}, __VA_ARGS__)
 
 int main(int argc, char** argv)
 {
@@ -148,23 +160,20 @@ int main(int argc, char** argv)
     pthread_setname_np("MainThread");
 #endif
 
-    ExamplePrintMessage({ ExampleLogLevel::Info, ExampleLogRegion::Network }, ++gSequenceNumber, "Hello from main thread!");
+    EVR_LOG_INFO(ExampleLogRegion::Network, "Hello from main thread!");
 
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> realtimeLogger;
+    rtlog::ScopedLogThread thread(gRealtimeLogger, ExamplePrintMessage, std::chrono::milliseconds(10));
 
-    rtlog::ScopedLogThread thread(realtimeLogger, ExamplePrintMessage, std::chrono::milliseconds(10));
-
-    std::thread realtimeThread { [&realtimeLogger]() {
+    std::thread realtimeThread { [&]() {
 #ifdef RTLOG_HAS_PTHREADS
         pthread_setname_np("RealtimeAudioThread");
-        pid_t threadId = get_thread_id(pthread_self());
 #endif
         while (gRunning)
         {
             for (int i = 99; i >= 0; i--)
             {
-                realtimeLogger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Audio }, "Hello %d from rt-thread %i", i, threadId);
-                RealtimeBusyWait(10, realtimeLogger);
+                EVR_RTLOG_DEBUG(ExampleLogRegion::Audio, "Hello %d from rt-thread", i);
+                RealtimeBusyWait(10, gRealtimeLogger);
             }
         }
     } };
@@ -177,7 +186,7 @@ int main(int argc, char** argv)
         {
             for (int i = 0; i < 100; i++)
             {
-                ExamplePrintMessage({ ExampleLogLevel::Info, ExampleLogRegion::Network }, ++gSequenceNumber, "Hello %d from non-rt-thread Network", i);
+                EVR_LOG_WARNING(ExampleLogRegion::Network, "Hello %d from non-rt-thread", i);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
