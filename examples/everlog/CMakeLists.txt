@@ -3,5 +3,6 @@ add_executable(everlog
 )
 
 target_link_libraries(everlog
-    rtlog::rtlog
+    PRIVATE
+        rtlog::rtlog
 )

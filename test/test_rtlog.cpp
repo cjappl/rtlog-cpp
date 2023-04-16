@@ -72,13 +72,20 @@ struct ExampleLogData
 class PrintMessageFunctor
 {
 public:
-    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* message) const
+    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) const __attribute__ ((format (printf, 4, 5)))
     {
+        std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
+        // print fstring and the varargs into a std::string
+        va_list args;
+        va_start(args, fstring);
+        vsnprintf(buffer.data(), buffer.size(), fstring, args);
+        va_end(args);
+
         printf("{%lu} [%s] (%s): %s\n", 
             sequenceNumber, 
             rtlog::test::to_string(data.level), 
             rtlog::test::to_string(data.region), 
-            message);
+            buffer.data());
     }
 };
 

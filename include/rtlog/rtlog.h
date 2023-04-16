@@ -30,7 +30,7 @@ public:
     {
         InternalLogData dataToQueue;
         dataToQueue.mLogData = inputData;
-        dataToQueue.mSequenceNumber = SequenceNumber++;
+        dataToQueue.mSequenceNumber = ++SequenceNumber;
 
         va_list args;
         va_start(args, format);
@@ -49,7 +49,7 @@ public:
         InternalLogData value;
         while (mQueue.try_dequeue(value)) 
         {
-            printLogFn(value.mLogData, value.mSequenceNumber, value.mMessage.data());
+            printLogFn(value.mLogData, value.mSequenceNumber, "%s", value.mMessage.data());
             numProcessed++;
         }
 
