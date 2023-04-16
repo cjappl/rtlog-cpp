@@ -131,7 +131,7 @@ TEST_CASE("LoggerThread does it's job")
 {
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
 
-    rtlog::ScopedLogThread thread(logger, ExamplePrintMessage, std::chrono::milliseconds(10));
+    rtlog::LogProcessingThread thread(logger, ExamplePrintMessage, std::chrono::milliseconds(10));
 
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l); 
     logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
@@ -139,4 +139,63 @@ TEST_CASE("LoggerThread does it's job")
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
+}
+
+TEST_CASE("Errors are returned from Log")
+{
+    SUBCASE("Success on normal enqueue")
+    {
+        rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+        CHECK(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l) == rtlog::Status::Success); 
+    }
+
+    SUBCASE("On a very long message, get truncation")
+    {
+        const auto maxMessageLength = 10;
+        rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength, gSequenceNumber> logger;
+        CHECK(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu! xxxxxxxxxxx", 123l) == rtlog::Status::Error_MessageTruncated);
+
+        SUBCASE("And you get a trunctated message out if you try to process")
+        {
+            auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) -> void
+            {
+                CHECK(data.level == ExampleLogLevel::Debug);
+                CHECK(data.region == ExampleLogRegion::Engine);
+
+                std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
+                va_list args;
+                va_start(args, fstring);
+                vsnprintf(buffer.data(), buffer.size(), fstring, args);
+                va_end(args);
+
+                CHECK(strcmp(buffer.data(), "Hello, 12") == 0);
+                CHECK(strlen(buffer.data()) == maxMessageLength - 1);
+            };
+
+            CHECK(logger.PrintAndClearLogQueue(InspectLogMessage) == 1);
+        }
+
+    }
+
+    SUBCASE("Enqueue more than capacity and get an error")
+    {
+        const auto maxNumMessages = 10;
+        rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+        auto status = rtlog::Status::Success;
+        auto numMessagesEnqueued = 0;
+        while (status == rtlog::Status::Success)
+        {
+            status = logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %s!", "world");
+            if (status == rtlog::Status::Success)
+            {
+                ++numMessagesEnqueued;
+            }
+        }
+
+        // NOTE: This isn't a hard limit, it's up to moodycamel to decide what the exact block size is
+        // on my machine setting a maxNumMessages of 10 results in a block size of 16!
+        CHECK(status == rtlog::Status::Error_QueueFull);
+    }
 }

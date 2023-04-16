@@ -1,14 +1,13 @@
-
 #include <rtlog/rtlog.h>
 
 #include <fstream>
 
-namespace everlog
+namespace evr
 {
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
 constexpr auto MAX_NUM_LOG_MESSAGES = 100;
 
-enum class ExampleLogLevel
+enum class LogLevel
 {
     Debug,
     Info,
@@ -16,24 +15,24 @@ enum class ExampleLogLevel
     Critical
 };
 
-const char* to_string(ExampleLogLevel level)
+const char* to_string(LogLevel level)
 {
     switch (level)
     {
-    case ExampleLogLevel::Debug:
+    case LogLevel::Debug:
         return "DEBG";
-    case ExampleLogLevel::Info:
+    case LogLevel::Info:
         return "INFO";
-    case ExampleLogLevel::Warning:
+    case LogLevel::Warning:
         return "WARN";
-    case ExampleLogLevel::Critical:
+    case LogLevel::Critical:
         return "CRIT";
     default:
         return "Unknown";
     }
 }
 
-enum class ExampleLogRegion
+enum class LogRegion
 {
     Engine,
     Game,
@@ -41,27 +40,27 @@ enum class ExampleLogRegion
     Audio
 };
 
-const char* to_string(ExampleLogRegion region)
+const char* to_string(LogRegion region)
 {
     switch (region)
     {
-    case ExampleLogRegion::Engine:
+    case LogRegion::Engine:
         return "ENGIN";
-    case ExampleLogRegion::Game:
+    case LogRegion::Game:
         return "GAME ";
-    case ExampleLogRegion::Network:
+    case LogRegion::Network:
         return "NETWK";
-    case ExampleLogRegion::Audio:
+    case LogRegion::Audio:
         return "AUDIO";
     default:
         return "UNKWN";
     }
 }
 
-struct ExampleLogData
+struct LogData
 {
-    ExampleLogLevel level;
-    ExampleLogRegion region;
+    LogLevel level;
+    LogRegion region;
 };
 
 class PrintMessageFunctor
@@ -83,7 +82,7 @@ public:
     PrintMessageFunctor& operator=(const PrintMessageFunctor&) = delete;
     PrintMessageFunctor& operator=(PrintMessageFunctor&&) = delete;
 
-    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
+    void operator()(const LogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
     {
         std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
 
@@ -103,12 +102,12 @@ public:
     std::ofstream mFile;
 };
 
-static PrintMessageFunctor ExamplePrintMessage("everlog.txt");
+static PrintMessageFunctor PrintMessage("everlog.txt");
 
 template <typename LoggerType>
 void RealtimeBusyWait(int milliseconds, LoggerType& logger) 
 {
-    logger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Engine }, "Realtime thread is busy waiting for %d milliseconds", milliseconds);
+    logger.Log({ LogLevel::Debug, LogRegion::Engine }, "Realtime thread is busy waiting for %d milliseconds", milliseconds);
     auto start = std::chrono::high_resolution_clock::now();
     while (true) 
     {
@@ -116,7 +115,7 @@ void RealtimeBusyWait(int milliseconds, LoggerType& logger)
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
         if (elapsed.count() >= milliseconds) 
         {
-            logger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Engine }, "Done!!");
+            logger.Log({ LogLevel::Debug, LogRegion::Engine }, "Done!!");
             break;
         }
     }
@@ -124,68 +123,46 @@ void RealtimeBusyWait(int milliseconds, LoggerType& logger)
 
 }
 
-#ifdef RTLOG_HAS_PTHREADS
-
-// TODO: dtrace
-pid_t get_thread_id(pthread_t thread) {
-    uint64_t thread_id;
-    pthread_threadid_np(thread, &thread_id);
-    return static_cast<pid_t>(thread_id);
-}
-#else
-
-#endif
-
-using namespace everlog;
+using namespace evr;
 
 std::atomic<bool> gRunning{ true };
 
 std::atomic<std::size_t> gSequenceNumber{ 0 };
-static rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> gRealtimeLogger;
+static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> gRealtimeLogger;
 
-#define EVR_LOG_DEBUG(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Debug, Region}, ++gSequenceNumber, __VA_ARGS__)
-#define EVR_LOG_INFO(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Info, Region}, ++gSequenceNumber, __VA_ARGS__)
-#define EVR_LOG_WARNING(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Warning, Region}, ++gSequenceNumber, __VA_ARGS__)
-#define EVR_LOG_CRITICAL(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Critical, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_DEBUG(Region, ...) PrintMessage({ LogLevel::Debug, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_INFO(Region, ...) PrintMessage({ LogLevel::Info, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_WARNING(Region, ...) PrintMessage({ LogLevel::Warning, Region}, ++gSequenceNumber, __VA_ARGS__)
+#define EVR_LOG_CRITICAL(Region, ...) PrintMessage({ LogLevel::Critical, Region}, ++gSequenceNumber, __VA_ARGS__)
 
-#define EVR_RTLOG_DEBUG(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Debug, Region}, __VA_ARGS__)
-#define EVR_RTLOG_INFO(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Info, Region}, __VA_ARGS__)
-#define EVR_RTLOG_WARNING(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Warning, Region}, __VA_ARGS__)
-#define EVR_RTLOG_CRITICAL(Region, ...) gRealtimeLogger.Log({ ExampleLogLevel::Critical, Region}, __VA_ARGS__)
+#define EVR_RTLOG_DEBUG(Region, ...) gRealtimeLogger.Log({ LogLevel::Debug, Region}, __VA_ARGS__)
+#define EVR_RTLOG_INFO(Region, ...) gRealtimeLogger.Log({ LogLevel::Info, Region}, __VA_ARGS__)
+#define EVR_RTLOG_WARNING(Region, ...) gRealtimeLogger.Log({ LogLevel::Warning, Region}, __VA_ARGS__)
+#define EVR_RTLOG_CRITICAL(Region, ...) gRealtimeLogger.Log({ LogLevel::Critical, Region}, __VA_ARGS__)
 
 int main(int argc, char** argv)
 {
-#ifdef RTLOG_HAS_PTHREADS
-    pthread_setname_np("MainThread");
-#endif
+    EVR_LOG_INFO(LogRegion::Network, "Hello from main thread!");
 
-    EVR_LOG_INFO(ExampleLogRegion::Network, "Hello from main thread!");
-
-    rtlog::ScopedLogThread thread(gRealtimeLogger, ExamplePrintMessage, std::chrono::milliseconds(10));
+    rtlog::LogProcessingThread thread(gRealtimeLogger, PrintMessage, std::chrono::milliseconds(10));
 
     std::thread realtimeThread { [&]() {
-#ifdef RTLOG_HAS_PTHREADS
-        pthread_setname_np("RealtimeAudioThread");
-#endif
         while (gRunning)
         {
             for (int i = 99; i >= 0; i--)
             {
-                EVR_RTLOG_DEBUG(ExampleLogRegion::Audio, "Hello %d from rt-thread", i);
+                EVR_RTLOG_DEBUG(LogRegion::Audio, "Hello %d from rt-thread", i);
                 RealtimeBusyWait(10, gRealtimeLogger);
             }
         }
     } };
 
     std::thread nonRealtimeThread { []() {
-#ifdef RTLOG_HAS_PTHREADS
-        pthread_setname_np("NetworkThread");
-#endif
         while (gRunning)
         {
             for (int i = 0; i < 100; i++)
             {
-                EVR_LOG_WARNING(ExampleLogRegion::Network, "Hello %d from non-rt-thread", i);
+                EVR_LOG_WARNING(LogRegion::Network, "Hello %d from non-rt-thread", i);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
@@ -196,7 +173,6 @@ int main(int argc, char** argv)
     return 0;
 }
 
-// if we receive a signal, stop the threads
 void signalHandler(int signum)
 {
     gRunning = false;

@@ -28,7 +28,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
 
 # Try to find the package ReaderWriterQueue, if not found fetch with FetchContent
 find_package(ReaderWriterQueue QUIET)
-if(NOT ReaderWriterQueue_FOUND)
+if(NOT TARGET readerwriterqueue)
     include(FetchContent)
     FetchContent_Declare(ReaderWriterQueue
         GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue
@@ -66,37 +66,23 @@ target_link_libraries(rtlog
         stb::stb
 )
 
-# check compile pthreads
-include(CheckCXXSourceCompiles)
-check_cxx_source_compiles("
-    #include <pthread.h>
-    int main() {
-        pthread_setname_np(\"test\");
-
-        pthread_t thread;
-        pthread_create(&thread, NULL, NULL, NULL);
-        pthread_join(thread, NULL);
-        return 0;
-    }
-" RTLOG_HAS_PTHREADS)
-
 target_compile_definitions(rtlog 
     INTERFACE 
         STB_SPRINTF_IMPLEMENTATION 
-        $<$<BOOL:${RTLOG_HAS_PTHREADS}>:RTLOG_HAS_PTHREADS>
         $<$<CONFIG:Debug>:DEBUG>
         $<$<CONFIG:Release>:NDEBUG>
 )
 
 target_compile_options(rtlog 
     INTERFACE 
-        $<$<CONFIG:Debug>:-O0 -g3>
+        $<$<CONFIG:Debug>:-O0>
         $<$<CONFIG:Release>:-O2>
 )
 
 option(RTLOG_BUILD_TESTS "Build tests" ON)
 if(RTLOG_BUILD_TESTS)
     include(CTest)
+    set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
     enable_testing()
     add_subdirectory(test)
 endif()
