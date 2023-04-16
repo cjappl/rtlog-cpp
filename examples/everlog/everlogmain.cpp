@@ -5,9 +5,6 @@
 
 namespace everlog
 {
-
-std::atomic<std::size_t> gSequenceNumber{ 0 };
-
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
 constexpr auto MAX_NUM_LOG_MESSAGES = 100;
 
@@ -89,7 +86,7 @@ public:
     void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
     {
         std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
-        // print fstring and the varargs into a std::string
+
         va_list args;
         va_start(args, fstring);
         vsnprintf(buffer.data(), buffer.size(), fstring, args);
@@ -142,6 +139,8 @@ pid_t get_thread_id(pthread_t thread) {
 using namespace everlog;
 
 std::atomic<bool> gRunning{ true };
+
+std::atomic<std::size_t> gSequenceNumber{ 0 };
 static rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> gRealtimeLogger;
 
 #define EVR_LOG_DEBUG(Region, ...) ExamplePrintMessage({ ExampleLogLevel::Debug, Region}, ++gSequenceNumber, __VA_ARGS__)
