@@ -127,17 +127,27 @@ void RealtimeBusyWait(int milliseconds, LoggerType& logger)
 
 }
 
+#ifdef RTLOG_HAS_PTHREADS
+
+pid_t get_thread_id(pthread_t thread) {
+    uint64_t thread_id;
+    pthread_threadid_np(thread, &thread_id);
+    return static_cast<pid_t>(thread_id);
+}
+#else
+
+#endif
+
 using namespace everlog;
 
 std::atomic<bool> gRunning{ true };
 
 int main(int argc, char** argv)
 {
-#ifndef RTLOG_HAS_PTHREADS
+#ifdef RTLOG_HAS_PTHREADS
     pthread_setname_np("MainThread");
 #endif
 
-    // log hello from main thread
     ExamplePrintMessage({ ExampleLogLevel::Info, ExampleLogRegion::Network }, ++gSequenceNumber, "Hello from main thread!");
 
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> realtimeLogger;
@@ -145,22 +155,22 @@ int main(int argc, char** argv)
     rtlog::ScopedLogThread thread(realtimeLogger, ExamplePrintMessage, std::chrono::milliseconds(10));
 
     std::thread realtimeThread { [&realtimeLogger]() {
-#ifndef RTLOG_HAS_PTHREADS
+#ifdef RTLOG_HAS_PTHREADS
         pthread_setname_np("RealtimeAudioThread");
+        pid_t threadId = get_thread_id(pthread_self());
 #endif
         while (gRunning)
         {
-            // count down from 100 to 0
             for (int i = 99; i >= 0; i--)
             {
-                realtimeLogger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Audio }, "Hello %d from rt-thread", i);
+                realtimeLogger.Log({ ExampleLogLevel::Debug, ExampleLogRegion::Audio }, "Hello %d from rt-thread %i", i, threadId);
                 RealtimeBusyWait(10, realtimeLogger);
             }
         }
     } };
 
     std::thread nonRealtimeThread { []() {
-#ifndef RTLOG_HAS_PTHREADS
+#ifdef RTLOG_HAS_PTHREADS
         pthread_setname_np("NetworkThread");
 #endif
         while (gRunning)
