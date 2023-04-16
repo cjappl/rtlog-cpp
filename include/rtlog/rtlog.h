@@ -1,13 +1,17 @@
-
-
-
 #pragma once
+
+// TODO: Make a log processor thread 
+// TODO: Use format lib and variadic templates
+// TODO: Build an example project executable
+// TODO: Documentation 
+// TODO: Lower camel case?
 
 #include <array>
 #include <cstdarg>
 #include <cstdio>
 
 #include <readerwriterqueue.h>
+#include <stb_sprintf.h>
 
 namespace rtlog 
 {
@@ -29,7 +33,7 @@ public:
 
         va_list args;
         va_start(args, format);
-        vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+        stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
         va_end(args);
 
         bool result = mQueue.try_enqueue(dataToQueue);
@@ -37,13 +41,18 @@ public:
     }
 
     template<typename PrintLogFn>
-    void ProcessLog(PrintLogFn printLogFn) 
+    int PrintAndClearLogQueue(PrintLogFn printLogFn) 
     {
+        int numProcessed = 0;
+
         InternalLogData value;
         while (mQueue.try_dequeue(value)) 
         {
             printLogFn(value.mLogData, value.mSequenceNumber, value.mMessage.data());
+            numProcessed++;
         }
+
+        return numProcessed;
     }
 
 private:

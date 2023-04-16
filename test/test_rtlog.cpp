@@ -97,10 +97,7 @@ TEST_CASE("Test rtlog basic construction")
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, world!");
 
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
+    CHECK(logger.PrintAndClearLogQueue(ExamplePrintMessage) == 4);
 }
 
 TEST_CASE("va_args works as intended")
@@ -114,9 +111,5 @@ TEST_CASE("va_args works as intended")
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
 
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
-    logger.ProcessLog(ExamplePrintMessage);
+    CHECK(logger.PrintAndClearLogQueue(ExamplePrintMessage) == 6);
 }

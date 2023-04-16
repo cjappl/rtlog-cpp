@@ -36,10 +36,37 @@ if(NOT ReaderWriterQueue_FOUND)
     FetchContent_MakeAvailable(ReaderWriterQueue)
 endif()
 
+if(NOT TARGET stb)
+    # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+        cmake_policy(SET CMP0135 NEW)
+    endif()
+
+    include(FetchContent)
+    FetchContent_Declare(stb
+        GIT_REPOSITORY https://github.com/nothings/stb
+    )
+    # Note we do not "MakeAvailable" here, because stb is not cmake, just populate 
+    if(NOT stb_POPULATED)
+        FetchContent_Populate(stb)
+    endif()
+
+    add_library(stb INTERFACE)
+    add_library(stb::stb ALIAS stb)
+
+    target_include_directories(stb INTERFACE
+        $<BUILD_INTERFACE:${stb_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+    )
+endif()
+
 target_link_libraries(rtlog 
     INTERFACE 
         readerwriterqueue
+        stb::stb
 )
+
+target_compile_definitions(rtlog INTERFACE STB_SPRINTF_IMPLEMENTATION)
 
 option(RTLOG_BUILD_TESTS "Build tests" ON)
 if(RTLOG_BUILD_TESTS)
@@ -53,7 +80,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 file(MAKE_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
 
 
 # TODO: WTF is installing ??
