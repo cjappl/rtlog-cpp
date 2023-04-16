@@ -21,7 +21,7 @@ template <typename LogData,
 class Logger
 {
 public:
-    void Log(LogData inputData, const char* format, ...)
+    void Log(LogData inputData, const char* format, ...) __attribute__ ((format (printf, 3, 4)))
     {
         InternalLogData dataToQueue;
         dataToQueue.mLogData = inputData;
@@ -32,7 +32,7 @@ public:
         vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
         va_end(args);
 
-        bool result = mQueue.try_enqueue(std::move(dataToQueue));
+        bool result = mQueue.try_enqueue(dataToQueue);
         assert(result); // If you're hitting this often, your queue is too small
     }
 

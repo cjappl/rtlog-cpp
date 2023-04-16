@@ -89,7 +89,7 @@ TEST_CASE("Dummy test")
     CHECK(true);
 }
 
-TEST_CASE("Test rtlog")
+TEST_CASE("Test rtlog basic construction")
 {
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, world!");
@@ -97,6 +97,24 @@ TEST_CASE("Test rtlog")
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, world!");
 
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
+    logger.ProcessLog(ExamplePrintMessage);
+}
+
+TEST_CASE("va_args works as intended")
+{
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l); 
+    logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
+    logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, %lf!", 123.0);
+    logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
+    logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
+
+    logger.ProcessLog(ExamplePrintMessage);
     logger.ProcessLog(ExamplePrintMessage);
     logger.ProcessLog(ExamplePrintMessage);
     logger.ProcessLog(ExamplePrintMessage);
