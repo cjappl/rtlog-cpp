@@ -1,6 +1,8 @@
 
 #include <rtlog/rtlog.h>
 
+#include <fstream>
+
 namespace everlog
 {
 
@@ -68,7 +70,23 @@ struct ExampleLogData
 class PrintMessageFunctor
 {
 public:
-    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) const __attribute__ ((format (printf, 4, 5)))
+    explicit PrintMessageFunctor(const std::string& filename) : mFile(filename) {
+        mFile.open(filename);
+        mFile.clear();
+    }
+
+    ~PrintMessageFunctor() {
+        if (mFile.is_open()) {
+            mFile.close();
+        }
+    }
+
+    PrintMessageFunctor(const PrintMessageFunctor&) = delete;
+    PrintMessageFunctor(PrintMessageFunctor&&) = delete;
+    PrintMessageFunctor& operator=(const PrintMessageFunctor&) = delete;
+    PrintMessageFunctor& operator=(PrintMessageFunctor&&) = delete;
+
+    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
     {
         std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
         // print fstring and the varargs into a std::string
@@ -82,10 +100,13 @@ public:
             to_string(data.level), 
             to_string(data.region), 
             buffer.data());
+
+        mFile << "{" << sequenceNumber << "} [" << to_string(data.level) << "] (" << to_string(data.region) << "): " << buffer.data() << std::endl;
     }
+    std::ofstream mFile;
 };
 
-static const PrintMessageFunctor ExamplePrintMessage;
+static PrintMessageFunctor ExamplePrintMessage("everlog.txt");
 
 }
 

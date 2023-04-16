@@ -42,7 +42,7 @@ public:
     }
 
     template<typename PrintLogFn>
-    int PrintAndClearLogQueue(PrintLogFn printLogFn) 
+    int PrintAndClearLogQueue(PrintLogFn& printLogFn) 
     {
         int numProcessed = 0;
 
