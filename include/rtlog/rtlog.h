@@ -7,8 +7,10 @@
 // TODO: Lower camel case?
 
 #include <array>
+#include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <thread>
 
 #include <readerwriterqueue.h>
 #include <stb_sprintf.h>
@@ -64,6 +66,62 @@ private:
     };
 
     moodycamel::ReaderWriterQueue<InternalLogData> mQueue{ MaxNumMessages };
+};
+
+// has a wait time, flushes the queue when done
+template <typename LoggerType, typename PrintLogFn>
+class ScopedLogThread
+{
+public:
+    ScopedLogThread(LoggerType& logger, PrintLogFn& printFn, std::chrono::milliseconds waitTime) :
+        mPrintFn(printFn),
+        mLogger(logger),
+        mWaitTime(waitTime)
+    {
+        mThread = std::thread(&ScopedLogThread::ThreadMain, this);
+    }
+
+    ~ScopedLogThread()
+    {
+        if (mThread.joinable())
+        {
+            Stop();
+        }
+
+        mThread.join();
+    }
+
+    ScopedLogThread(const ScopedLogThread&) = delete;
+    ScopedLogThread& operator=(const ScopedLogThread&) = delete;
+    ScopedLogThread(ScopedLogThread&&) = delete;
+    ScopedLogThread& operator=(ScopedLogThread&&) = delete;
+
+    void Stop()
+    {
+        mShouldRun.store(false);
+    }
+
+    void ThreadMain()
+    {
+        while (mShouldRun.load())
+        {
+
+            if (mLogger.PrintAndClearLogQueue(mPrintFn) == 0)
+            {
+                std::this_thread::sleep_for(mWaitTime);
+            }
+
+            std::this_thread::sleep_for(mWaitTime);
+        }
+
+        mLogger.PrintAndClearLogQueue(mPrintFn);
+    }
+private:
+    PrintLogFn& mPrintFn;
+    LoggerType& mLogger;
+    std::thread mThread;
+    std::atomic<bool> mShouldRun{ true };
+    std::chrono::milliseconds mWaitTime;
 };
 
 } // namespace rtlog

@@ -69,14 +69,20 @@ struct ExampleLogData
 };
 
 
-void ExamplePrintMessage(const ExampleLogData& data, size_t sequenceNumber, const char* message)
+class PrintMessageFunctor
 {
-    printf("{%lu} [%s] (%s): %s\n", 
-        sequenceNumber, 
-        rtlog::test::to_string(data.level), 
-        rtlog::test::to_string(data.region), 
-        message);
-}
+public:
+    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* message) const
+    {
+        printf("{%lu} [%s] (%s): %s\n", 
+            sequenceNumber, 
+            rtlog::test::to_string(data.level), 
+            rtlog::test::to_string(data.region), 
+            message);
+    }
+};
+
+static const PrintMessageFunctor ExamplePrintMessage;
 
 }
 }
@@ -112,4 +118,18 @@ TEST_CASE("va_args works as intended")
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
 
     CHECK(logger.PrintAndClearLogQueue(ExamplePrintMessage) == 6);
+}
+
+TEST_CASE("LoggerThread does it's job")
+{
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+    rtlog::ScopedLogThread thread(logger, ExamplePrintMessage, std::chrono::milliseconds(10));
+
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l); 
+    logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
+    logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, %lf!", 123.0);
+    logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
+    logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
 }
