@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(rtlog VERSION 1.0.0)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17) # TODO: we only use 17 for CTAD type things, can we get away with 11 ?
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add library header files
@@ -75,12 +75,10 @@ if(RTLOG_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
-# TODO: Get rid of these
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-file(MAKE_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
-file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
+option(RTLOG_BUILD_EXAMPLES "Build examples" ON)
+if(RTLOG_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 # TODO: WTF is installing ??
 # Install library

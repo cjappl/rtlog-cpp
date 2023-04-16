@@ -1,6 +1,5 @@
 #pragma once
 
-// TODO: Make a log processor thread 
 // TODO: Use format lib and variadic templates
 // TODO: Build an example project executable
 // TODO: Documentation 
@@ -68,7 +67,6 @@ private:
     moodycamel::ReaderWriterQueue<InternalLogData> mQueue{ MaxNumMessages };
 };
 
-// has a wait time, flushes the queue when done
 template <typename LoggerType, typename PrintLogFn>
 class ScopedLogThread
 {
