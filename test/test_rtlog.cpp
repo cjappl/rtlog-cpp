@@ -17,7 +17,7 @@ enum class ExampleLogLevel
     Debug,
     Info,
     Warning,
-    Error
+    Critical
 };
 
 const char* to_string(ExampleLogLevel level)
@@ -25,13 +25,13 @@ const char* to_string(ExampleLogLevel level)
     switch (level)
     {
     case ExampleLogLevel::Debug:
-        return "Debug";
+        return "DEBG";
     case ExampleLogLevel::Info:
-        return "Info";
+        return "INFO";
     case ExampleLogLevel::Warning:
-        return "Warning";
-    case ExampleLogLevel::Error:
-        return "Error";
+        return "WARN";
+    case ExampleLogLevel::Critical:
+        return "CRIT";
     default:
         return "Unknown";
     }
@@ -50,15 +50,15 @@ const char* to_string(ExampleLogRegion region)
     switch (region)
     {
     case ExampleLogRegion::Engine:
-        return "Engine";
+        return "ENGIN";
     case ExampleLogRegion::Game:
-        return "Game";
+        return "GAME ";
     case ExampleLogRegion::Network:
-        return "Network";
+        return "NETWK";
     case ExampleLogRegion::Audio:
-        return "Audio";
+        return "AUDIO";
     default:
-        return "Unknown";
+        return "UNKWN";
     }
 }
 
@@ -71,10 +71,10 @@ struct ExampleLogData
 
 void ExamplePrintMessage(const ExampleLogData& data, size_t sequenceNumber, const char* message)
 {
-    printf("[%s] (%s) {%lu}: %s\n", 
+    printf("{%lu} [%s] (%s): %s\n", 
+        sequenceNumber, 
         rtlog::test::to_string(data.level), 
         rtlog::test::to_string(data.region), 
-        sequenceNumber, 
         message);
 }
 
@@ -95,7 +95,7 @@ TEST_CASE("Test rtlog")
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, world!");
     logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
-    logger.Log({ExampleLogLevel::Error, ExampleLogRegion::Audio}, "Hello, world!");
+    logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, world!");
 
     logger.ProcessLog(ExamplePrintMessage);
     logger.ProcessLog(ExamplePrintMessage);
