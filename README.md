@@ -45,70 +45,70 @@ After including via cmake:
 2. Create a `rtlog::Logger` object with the desired template parameters:
 3. Process the log messages on your own thread, or via the provided `rtlog::LogProcessingThread`
 
-   ```c++
-    #include <rtlog/rtlog.h>
+```c++
+#include <rtlog/rtlog.h>
 
-    struct ExampleLogData
+struct ExampleLogData
+{
+    ExampleLogLevel level;
+    ExampleLogRegion region;
+};
+
+constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
+constexpr auto MAX_NUM_LOG_MESSAGES = 100;
+
+std::atomic<int> gSequenceNumber{0};
+
+using RealtimeLogger = rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber>;
+
+...
+
+RealtimeLogger logger;
+
+void SomeRealtimeCallback()
+{
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Audio}, "Hello, world!");
+}
+
+...
+
+```
+
+To process the logs in another thread, call `PrintAndClearLogQueue` with a function to call on the output data.
+
+```
+
+static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
+{
+    std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
+    
+    va_list args;
+    va_start(args, fstring);
+    vsnprintf(buffer.data(), buffer.size(), fstring, args);
+    va_end(args);
+
+    printf("{%lu} [%s] (%s): %s\n", 
+        sequenceNumber, 
+        rtlog::test::to_string(data.level), 
+        rtlog::test::to_string(data.region), 
+        buffer.data());
+};
+
+...
+
+void LogProcessorThreadMain()
+{
+    while (running)
     {
-        ExampleLogLevel level;
-        ExampleLogRegion region;
-    };
-
-    constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
-    constexpr auto MAX_NUM_LOG_MESSAGES = 100;
-
-    std::atomic<int> gSequenceNumber{0};
-
-    using RealtimeLogger = rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber>;
-
-    ...
-
-    RealtimeLogger logger;
-
-    void SomeRealtimeCallback()
-    {
-        logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Audio}, "Hello, world!");
+        if (logger.PrintAndClearLogQueue(PrintMessage) == 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10);
     }
+}
 
-    ...
+```
 
-    ```
+Or alternatively spin up a `rtlog::LogProcessingThread`
 
-    To process the logs in another thread, call `PrintAndClearLogQueue` with a function to call on the output data.
-
-    ```
-
-    static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
-    {
-        std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
-        
-        va_list args;
-        va_start(args, fstring);
-        vsnprintf(buffer.data(), buffer.size(), fstring, args);
-        va_end(args);
-
-        printf("{%lu} [%s] (%s): %s\n", 
-            sequenceNumber, 
-            rtlog::test::to_string(data.level), 
-            rtlog::test::to_string(data.region), 
-            buffer.data());
-    };
-
-    ...
-
-    void LogProcessorThreadMain()
-    {
-        while (running)
-        {
-            if (logger.PrintAndClearLogQueue(PrintMessage) == 0)
-                std::this_thread::sleep_for(std::chrono::milliseconds(10);
-        }
-    }
-
-    ```
-
-    Or alternatively spin up a `rtlog::LogProcessingThread`
-
-    ```
-        rtlog::LogProcessingThread thread(logger, PrintMessage, std::chrono::milliseconds(10));
-    ```
+```
+    rtlog::LogProcessingThread thread(logger, PrintMessage, std::chrono::milliseconds(10));
+```
