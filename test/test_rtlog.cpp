@@ -1,10 +1,7 @@
 #include <doctest/doctest.h>
 #include <rtlog/rtlog.h>
 
-namespace rtlog
-{
-
-namespace test
+namespace rtlog::test
 {
 
 std::atomic<std::size_t> gSequenceNumber{ 0 };
@@ -91,16 +88,9 @@ public:
 
 static const PrintMessageFunctor ExamplePrintMessage;
 
-}
-}
+} // namespace rtlog::test
 
 using namespace rtlog::test;
-
-
-TEST_CASE("Dummy test")
-{
-    CHECK(true);
-}
 
 TEST_CASE("Test rtlog basic construction")
 {
