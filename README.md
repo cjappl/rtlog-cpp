@@ -76,7 +76,7 @@ void SomeRealtimeCallback()
 
 To process the logs in another thread, call `PrintAndClearLogQueue` with a function to call on the output data.
 
-```
+```c++
 
 static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
 {
@@ -109,6 +109,6 @@ void LogProcessorThreadMain()
 
 Or alternatively spin up a `rtlog::LogProcessingThread`
 
-```
+```c++
     rtlog::LogProcessingThread thread(logger, PrintMessage, std::chrono::milliseconds(10));
 ```
