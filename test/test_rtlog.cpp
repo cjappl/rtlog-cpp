@@ -66,27 +66,22 @@ struct ExampleLogData
 };
 
 
-class PrintMessageFunctor
+
+static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) __attribute__ ((format (printf, 4, 5)))
 {
-public:
-    void operator()(const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) const __attribute__ ((format (printf, 4, 5)))
-    {
-        std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
-        // print fstring and the varargs into a std::string
-        va_list args;
-        va_start(args, fstring);
-        vsnprintf(buffer.data(), buffer.size(), fstring, args);
-        va_end(args);
+    std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
+    // print fstring and the varargs into a std::string
+    va_list args;
+    va_start(args, fstring);
+    vsnprintf(buffer.data(), buffer.size(), fstring, args);
+    va_end(args);
 
-        printf("{%lu} [%s] (%s): %s\n", 
-            sequenceNumber, 
-            rtlog::test::to_string(data.level), 
-            rtlog::test::to_string(data.region), 
-            buffer.data());
-    }
+    printf("{%lu} [%s] (%s): %s\n", 
+        sequenceNumber, 
+        rtlog::test::to_string(data.level), 
+        rtlog::test::to_string(data.region), 
+        buffer.data());
 };
-
-static const PrintMessageFunctor ExamplePrintMessage;
 
 } // namespace rtlog::test
 
@@ -100,7 +95,7 @@ TEST_CASE("Test rtlog basic construction")
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, world!");
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, world!");
 
-    CHECK(logger.PrintAndClearLogQueue(ExamplePrintMessage) == 4);
+    CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 4);
 }
 
 TEST_CASE("va_args works as intended")
@@ -114,14 +109,14 @@ TEST_CASE("va_args works as intended")
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
 
-    CHECK(logger.PrintAndClearLogQueue(ExamplePrintMessage) == 6);
+    CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
 }
 
 TEST_CASE("LoggerThread does it's job")
 {
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
 
-    rtlog::LogProcessingThread thread(logger, ExamplePrintMessage, std::chrono::milliseconds(10));
+    rtlog::LogProcessingThread thread(logger, PrintMessage, std::chrono::milliseconds(10));
 
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l); 
     logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
