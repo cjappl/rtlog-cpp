@@ -63,12 +63,12 @@ public:
      * @param ... The variable arguments to the printf-style format specifiers.
      * @return Status A Status value indicating whether the logging operation was successful.
     */
-    Status Log(const LogData& inputData, const char* format, ...) __attribute__ ((format (printf, 3, 4)))
+    Status Log(LogData&& inputData, const char* format, ...) __attribute__ ((format (printf, 3, 4)))
     {
         auto retVal = Status::Success;
 
         InternalLogData dataToQueue;
-        dataToQueue.mLogData = inputData;
+        dataToQueue.mLogData = std::forward<LogData>(inputData);
         dataToQueue.mSequenceNumber = ++SequenceNumber;
 
         va_list args;
