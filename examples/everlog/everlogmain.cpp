@@ -107,7 +107,6 @@ static PrintMessageFunctor PrintMessage("everlog.txt");
 template <typename LoggerType>
 void RealtimeBusyWait(int milliseconds, LoggerType& logger) 
 {
-    logger.Log({ LogLevel::Debug, LogRegion::Engine }, "Realtime thread is busy waiting for %d milliseconds", milliseconds);
     auto start = std::chrono::high_resolution_clock::now();
     while (true) 
     {

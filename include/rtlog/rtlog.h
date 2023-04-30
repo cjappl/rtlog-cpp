@@ -155,7 +155,9 @@ public:
      * generally assumed to be some specialization of rtlog::Logger, a reference to a PrintLogFn object, and a wait time in ms
      *
      * On construction, the LogProcessingThread will start a thread that will continually dequeue the messages from the logger
-     * and call printFn on them.
+     * and call printFn on them. 
+     *
+     * You must call Stop() to stop the thread and join it before your logger goes out of scope! Otherwise it's a use-after-free
      *
      * See tests and examples for some ideas on how to use this class. Using ctad you often don't need to specify the template parameters.
      * 

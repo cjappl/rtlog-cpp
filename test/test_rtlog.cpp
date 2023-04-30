@@ -124,6 +124,8 @@ TEST_CASE("LoggerThread does it's job")
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
+
+    thread.Stop();
 }
 
 TEST_CASE("Errors are returned from Log")
