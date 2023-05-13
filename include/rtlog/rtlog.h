@@ -55,7 +55,7 @@ public:
     /*
      * @brief Logs a message with the given format and input data.
      *
-     * REALTIME SAFE! 
+     * REALTIME SAFE - except on systems where va_args allocates
      *
      * This function logs a message with the given format and input data. The format is specified using printf-style
      * format specifiers. It's highly recommended you use and respect -Wformat to ensure your format specifiers are correct.
@@ -66,6 +66,10 @@ public:
      * @param format The printf-style format specifiers for the message.
      * @param ... The variable arguments to the printf-style format specifiers.
      * @return Status A Status value indicating whether the logging operation was successful.
+     *
+     * This function attempts to enqueue the log message regardless of whether the message was truncated due to being
+     * too long for the buffer. If the message queue is full, the function returns `Status::Error_QueueFull`. If the
+     * message was truncated, the function returns `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
     */
     Status Log(LogData&& inputData, const char* format, ...) __attribute__ ((format (printf, 3, 4)))
     {
@@ -98,6 +102,27 @@ public:
 
 #ifdef RTLOG_USE_FMTLIB
 
+    /**
+     * @brief Logs a message with the given format string and input data.
+     *
+     * REALTIME SAFE ON ALL SYSTEMS!
+     *
+     * This function logs a message using a format string and input data, similar to the `Log` function.
+     * However, instead of printf-style format specifiers, this function uses the format specifiers of the {fmt} library.
+     * Because the variadic template is resolved at compile time, this is guaranteed to be realtime safe on all systems.
+     *
+     * To actually process the log messages (print, write to file, etc), you must call PrintAndClearLogQueue.
+     *
+     * @tparam T The types of the arguments to the format specifiers.
+     * @param inputData The data to be logged.
+     * @param fmtString The {fmt}-style format string for the message.
+     * @param args The arguments to the format specifiers.
+     * @return Status A Status value indicating whether the logging operation was successful.
+     *
+     * This function attempts to enqueue the log message regardless of whether the message was truncated due to being
+     * too long for the buffer. If the message queue is full, the function returns `Status::Error_QueueFull`. If the
+     * message was truncated, the function returns `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
+     */
     template<typename ...T>
     Status LogFmt(LogData&& inputData, fmt::format_string<T...> fmtString, T&&... args)
     {
