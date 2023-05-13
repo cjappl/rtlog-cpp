@@ -1,8 +1,10 @@
-include(FetchContent)
-FetchContent_Declare(doctest
-  GIT_REPOSITORY https://github.com/doctest/doctest
-)
-FetchContent_MakeAvailable(doctest)
+if (NOT TARGET doctest::doctest)
+    include(FetchContent)
+    FetchContent_Declare(doctest
+      GIT_REPOSITORY https://github.com/doctest/doctest
+    )
+    FetchContent_MakeAvailable(doctest)
+endif()
 
 # These two are painfully not easily accessed. 
 # TODO: CAPPLE submitted a PR that got accepted into doctest, switch to that newer version when we can
@@ -25,7 +27,7 @@ target_link_libraries(rtlog_tests
 
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED ON)
 
-if (CMAKE_GENERATOR STREQUAL "Xcode" OR NOT APPLE)
+if (CMAKE_GENERATOR STREQUAL "Xcode")
     add_test(NAME rtlog_tests COMMAND rtlog_tests)
 else()
     doctest_discover_tests(rtlog_tests)

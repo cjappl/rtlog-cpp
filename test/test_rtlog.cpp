@@ -145,7 +145,7 @@ TEST_CASE("Errors are returned from Log")
 
         SUBCASE("And you get a trunctated message out if you try to process")
         {
-            auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...) -> void
+            auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...)
             {
                 CHECK(data.level == ExampleLogLevel::Debug);
                 CHECK(data.region == ExampleLogRegion::Engine);
@@ -156,7 +156,7 @@ TEST_CASE("Errors are returned from Log")
                 vsnprintf(buffer.data(), buffer.size(), fstring, args);
                 va_end(args);
 
-                CHECK(strcmp(buffer.data(), "Hello, 12") == 0);
+                CHECK(buffer.data() == "Hello, 12");
                 CHECK(strlen(buffer.data()) == maxMessageLength - 1);
             };
 
@@ -186,3 +186,80 @@ TEST_CASE("Errors are returned from Log")
         CHECK(status == rtlog::Status::Error_QueueFull);
     }
 }
+
+#ifdef RTLOG_USE_FMTLIB
+
+TEST_CASE("Formatlib version works as intended")
+{
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+    logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, FMT_STRING("Hello, {}!"), 123l); 
+    logger.LogFmt({ExampleLogLevel::Info, ExampleLogRegion::Game}, FMT_STRING("Hello, {}!"), 123.0f);
+    logger.LogFmt({ExampleLogLevel::Warning, ExampleLogRegion::Network}, FMT_STRING("Hello, {}!"), 123.0);
+    logger.LogFmt({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, FMT_STRING("Hello, {}!"), (void*)123);
+    logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, FMT_STRING("Hello, {}!"), 123);
+    logger.LogFmt({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, FMT_STRING("Hello, {}!"), "world");
+
+    CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
+}
+
+TEST_CASE("Errors are returned from LogFmt")
+{
+    SUBCASE("Success on normal enqueue")
+    {
+        rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+        CHECK(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, FMT_STRING("Hello, {}!"), 123l) == rtlog::Status::Success); 
+    }
+
+    SUBCASE("On a very long message, get truncation")
+    {
+        const auto maxMessageLength = 10;
+        rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength, gSequenceNumber> logger;
+        CHECK(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l) == rtlog::Status::Error_MessageTruncated);
+
+        SUBCASE("And you get a truncated message out if you try to process")
+        {
+            auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...)
+            {
+                CHECK(data.level == ExampleLogLevel::Debug);
+                CHECK(data.region == ExampleLogRegion::Engine);
+
+                std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
+                va_list args;
+                va_start(args, fstring);
+                vsnprintf(buffer.data(), buffer.size(), fstring, args);
+                va_end(args);
+
+                CHECK(buffer.data() == "Hello, 12");
+                CHECK(strlen(buffer.data()) == maxMessageLength - 1);
+            };
+
+            CHECK(logger.PrintAndClearLogQueue(InspectLogMessage) == 1);
+        }
+
+    }
+
+    SUBCASE("Enqueue more than capacity and get an error")
+    {
+        const auto maxNumMessages = 10;
+        rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+        auto status = rtlog::Status::Success;
+        auto numMessagesEnqueued = 0;
+        while (status == rtlog::Status::Success)
+        {
+            status = logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, FMT_STRING("Hello, {}!"), "world");
+            if (status == rtlog::Status::Success)
+            {
+                ++numMessagesEnqueued;
+            }
+        }
+
+        // NOTE: This isn't a hard limit, it's up to moodycamel to decide what the exact block size is
+        // on my machine setting a maxNumMessages of 10 results in a block size of 16!
+        CHECK(status == rtlog::Status::Error_QueueFull);
+    }
+}
+
+#endif // RTLOG_USE_FMTLIB

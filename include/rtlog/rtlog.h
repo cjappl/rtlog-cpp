@@ -10,6 +10,10 @@
 #include <cstdio>
 #include <thread>
 
+#ifdef RTLOG_USE_FMTLIB
+#include <fmt/format.h>
+#endif // RTLOG_USE_FMTLIB
+
 #include <readerwriterqueue.h>
 #include <stb_sprintf.h>
 
@@ -73,10 +77,10 @@ public:
 
         va_list args;
         va_start(args, format);
-        auto result = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+        auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
         va_end(args);
 
-        if (result < 0 || result >= dataToQueue.mMessage.size())
+        if (charsPrinted < 0 || charsPrinted >= dataToQueue.mMessage.size())
         {
             retVal = Status::Error_MessageTruncated;
         }
@@ -92,6 +96,44 @@ public:
         return retVal;
     }
 
+#ifdef RTLOG_USE_FMTLIB
+
+    template<typename ...T>
+    Status LogFmt(LogData&& inputData, fmt::format_string<T...> fmtString, T&&... args)
+    {
+        auto retVal = Status::Success;
+
+        InternalLogData dataToQueue;
+        dataToQueue.mLogData = std::forward<LogData>(inputData);
+        dataToQueue.mSequenceNumber = ++SequenceNumber;
+
+        const auto maxMessageLength = dataToQueue.mMessage.size() - 1; // Account for null terminator
+
+        const auto result = fmt::format_to_n(dataToQueue.mMessage.data(), maxMessageLength, fmtString, args...);
+
+        if (result.size >= dataToQueue.mMessage.size())
+        {
+            dataToQueue.mMessage[dataToQueue.mMessage.size() - 1] = '\0';
+            retVal = Status::Error_MessageTruncated;
+        }
+        else
+        {
+            dataToQueue.mMessage[result.size] = '\0';
+        }
+
+        // Even if the message was truncated, we still try to enqueue it to minimize data loss
+        const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+
+        if (!dataWasEnqueued)
+        {
+            retVal = Status::Error_QueueFull;
+        }
+
+        return retVal;
+    };
+
+#endif // RTLOG_USE_FMTLIB
+ 
     /**
       * @brief Processes and prints all queued log data.
       *
