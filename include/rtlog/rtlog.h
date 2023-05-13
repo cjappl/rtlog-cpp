@@ -81,10 +81,10 @@ public:
 
         va_list args;
         va_start(args, format);
-        auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+        const auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
         va_end(args);
 
-        if (charsPrinted < 0 || charsPrinted >= dataToQueue.mMessage.size())
+        if (charsPrinted < 0 || static_cast<size_t>(charsPrinted) >= dataToQueue.mMessage.size())
         {
             retVal = Status::Error_MessageTruncated;
         }

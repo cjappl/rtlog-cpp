@@ -147,6 +147,8 @@ TEST_CASE("Errors are returned from Log")
         {
             auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...)
             {
+                (void)sequenceNumber;
+
                 CHECK(data.level == ExampleLogLevel::Debug);
                 CHECK(data.region == ExampleLogRegion::Engine);
 
@@ -222,6 +224,8 @@ TEST_CASE("Errors are returned from LogFmt")
         {
             auto InspectLogMessage = [](const ExampleLogData& data, size_t sequenceNumber, const char* fstring, ...)
             {
+                (void)sequenceNumber;
+
                 CHECK(data.level == ExampleLogLevel::Debug);
                 CHECK(data.region == ExampleLogRegion::Engine);
 

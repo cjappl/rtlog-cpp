@@ -86,8 +86,7 @@ target_compile_definitions(rtlog
 
 target_compile_options(rtlog 
     INTERFACE 
-        $<$<CONFIG:Debug>:-O0>
-        $<$<CONFIG:Release>:-O2>
+        $<$<BOOL:${RTLOG_FULL_WARNINGS}>:-Wall -Werror -Wformat -Wextra -Wformat-security>
 )
 
 option(RTLOG_BUILD_TESTS "Build tests" ON)
