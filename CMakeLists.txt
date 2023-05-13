@@ -102,7 +102,7 @@ if(RTLOG_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# TODO: WTF is installing ??
+# TODO: figure out installing
 # Install library
 #install(TARGETS rtlog
 #  EXPORT rtlogTargets
@@ -120,5 +120,3 @@ endif()
 #  NAMESPACE rtlog::
 #  DESTINATION lib/cmake/rtlog
 #)
-
-
