@@ -4,6 +4,8 @@
 
 If you're looking for a general use logger, this probably isn't the library for you!
 
+The design behind this logger was presented at ADCx 2023. Check out that presentation [here](https://github.com/cjappl/Conference-Presentations/tree/main/Taming-Real-Time-Logging-ADCx-2023)
+
 ## Features
 
 - Ability to log messages of any type and size from the real-time thread
