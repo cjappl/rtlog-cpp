@@ -37,6 +37,11 @@ target_link_libraries(audioapp
  )
 ```
 
+To use formatlib, set the variable, either on the command line or in cmake:
+```bash
+cmake .. -DRTLOG_USE_FMTLIB=ON
+```
+
 ## Usage
 
 For more fleshed out fully running examples check out `examples/` and `test/`
