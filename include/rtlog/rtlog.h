@@ -1,9 +1,5 @@
 #pragma once
 
-// TODO: Use format lib and variadic templates
-// TODO: Make json logger example?
-// TODO: Make atomic sequence number optional
-
 #include <array>
 #include <chrono>
 #include <cstdarg>
