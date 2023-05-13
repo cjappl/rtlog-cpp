@@ -36,7 +36,7 @@ if(NOT TARGET readerwriterqueue)
     FetchContent_MakeAvailable(ReaderWriterQueue)
 endif()
 
-if(NOT TARGET stb)
+if(NOT TARGET stb::stb)
     # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
         cmake_policy(SET CMP0135 NEW)
@@ -60,15 +60,26 @@ if(NOT TARGET stb)
     )
 endif()
 
+if (RTLOG_USE_FMTLIB AND NOT TARGET fmt::fmt)
+    include(FetchContent)
+
+    FetchContent_Declare(fmtlib
+        GIT_REPOSITORY https://github.com/fmtlib/fmt 
+    )
+    FetchContent_MakeAvailable(fmtlib)
+endif()
+
 target_link_libraries(rtlog 
     INTERFACE 
         readerwriterqueue
         stb::stb
+        $<$<BOOL:${RTLOG_USE_FMTLIB}>:fmt::fmt>
 )
 
 target_compile_definitions(rtlog 
     INTERFACE 
         STB_SPRINTF_IMPLEMENTATION 
+        $<$<BOOL:${RTLOG_USE_FMTLIB}>:RTLOG_USE_FMTLIB>
         $<$<CONFIG:Debug>:DEBUG>
         $<$<CONFIG:Release>:NDEBUG>
 )
