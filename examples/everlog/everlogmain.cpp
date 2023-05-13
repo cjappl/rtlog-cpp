@@ -134,6 +134,13 @@ static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSeq
 #define EVR_LOG_WARNING(Region, fstring, ...) PrintMessage({ LogLevel::Warning, Region}, ++gSequenceNumber, fstring, ##__VA_ARGS__)
 #define EVR_LOG_CRITICAL(Region, ...) PrintMessage({ LogLevel::Critical, Region}, ++gSequenceNumber, fstring, ##__VA_ARGS__)
 
+#define EVR_RTLOG_DEBUG(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Debug, Region}, fstring, ##__VA_ARGS__)
+#define EVR_RTLOG_INFO(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Info, Region}, fstring, ##__VA_ARGS__)
+#define EVR_RTLOG_WARNING(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Warning, Region}, fstring, ##__VA_ARGS__)
+#define EVR_RTLOG_CRITICAL(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Critical, Region}, fstring, ##__VA_ARGS__)
+
+
+
 #ifdef RTLOG_USE_FMTLIB
 
 #define EVR_RTLOG_FMT_DEBUG(Region, fstring, ...) gRealtimeLogger.LogFmt({ LogLevel::Debug, Region}, FMT_STRING(fstring), ##__VA_ARGS__)
@@ -142,17 +149,14 @@ static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSeq
 #define EVR_RTLOG_FMT_CRITICAL(Region, fstring, ...) gRealtimeLogger.LogFmt({ LogLevel::Critical, Region}, FMT_STRING(fstring), ##__VA_ARGS__)
 
 #else
+
 // define the above macros as no-ops
 #define EVR_RTLOG_FMT_DEBUG(Region, fstring, ...) (void)0
 #define EVR_RTLOG_FMT_INFO(Region, fstring, ...) (void)0
 #define EVR_RTLOG_FMT_WARNING(Region, fstring, ...) (void)0
 #define EVR_RTLOG_FMT_CRITICAL(Region, fstring, ...) (void)0
-#endif
 
-#define EVR_RTLOG_DEBUG(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Debug, Region}, fstring, ##__VA_ARGS__)
-#define EVR_RTLOG_INFO(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Info, Region}, fstring, ##__VA_ARGS__)
-#define EVR_RTLOG_WARNING(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Warning, Region}, fstring, ##__VA_ARGS__)
-#define EVR_RTLOG_CRITICAL(Region, fstring, ...) gRealtimeLogger.Log({ LogLevel::Critical, Region}, fstring, ##__VA_ARGS__)
+#endif // RTLOG_USE_FMTLIB
 
 int main(int argc, char** argv)
 {
