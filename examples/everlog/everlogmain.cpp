@@ -158,7 +158,7 @@ static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSeq
 
 #endif // RTLOG_USE_FMTLIB
 
-int main(int argc, char** argv)
+int main()
 {
     EVR_LOG_INFO(LogRegion::Network, "Hello from main thread!");
 
@@ -192,7 +192,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void signalHandler(int signum)
+void signalHandler()
 {
     gRunning = false;
 }
