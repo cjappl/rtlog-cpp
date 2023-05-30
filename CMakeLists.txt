@@ -11,7 +11,7 @@ set(HEADERS
 )
 
 # Create library target
-add_library(rtlog INTERFACE ${HEADERS})
+add_library(rtlog INTERFACE)
 add_library(rtlog::rtlog ALIAS rtlog)
 
 # Set include directories for library
@@ -86,7 +86,7 @@ target_compile_definitions(rtlog
 
 target_compile_options(rtlog 
     INTERFACE 
-        $<$<BOOL:${RTLOG_FULL_WARNINGS}>:-Wall -Werror -Wformat -Wextra -Wformat-security>
+        $<$<BOOL:${RTLOG_FULL_WARNINGS}>:-Wall -Werror -Wformat -Wextra -Wformat-security -Wno-unused-function>
 )
 
 option(RTLOG_BUILD_TESTS "Build tests" ON)
