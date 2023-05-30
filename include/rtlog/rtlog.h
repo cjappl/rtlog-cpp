@@ -11,6 +11,15 @@
 #endif // RTLOG_USE_FMTLIB
 
 #include <readerwriterqueue.h>
+
+#ifndef STB_SPRINTF_IMPLEMENTATION
+#define STB_SPRINTF_IMPLEMENTATION
+#endif
+
+#ifndef STB_SPRINTF_STATIC
+#define STB_SPRINTF_STATIC
+#endif
+
 #include <stb_sprintf.h>
 
 namespace rtlog 
@@ -199,7 +208,7 @@ private:
 /**
  * @brief A class representing a log processing thread.
  * 
- * This class represents a log processing thread that continuously dequeues log data from a LoggerType object and calls 
+ * This class represents a log processing thread that continuously dequeues log data from a LoggerType object and calls
  * a PrintLogFn object to print the log data. The wait time between each log processing iteration can be specified in 
  * milliseconds.
  * 

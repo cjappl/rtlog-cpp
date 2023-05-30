@@ -11,7 +11,7 @@ set(HEADERS
 )
 
 # Create library target
-add_library(rtlog INTERFACE ${HEADERS})
+add_library(rtlog INTERFACE)
 add_library(rtlog::rtlog ALIAS rtlog)
 
 # Set include directories for library
