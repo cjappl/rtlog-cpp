@@ -139,7 +139,7 @@ public:
 
         const auto maxMessageLength = dataToQueue.mMessage.size() - 1; // Account for null terminator
 
-        const auto result = fmt::format_to_n(dataToQueue.mMessage.data(), maxMessageLength, fmtString, args...);
+        const auto result = fmt::format_to_n(dataToQueue.mMessage.data(), maxMessageLength, fmtString, std::forward<T>(args)...);
 
         if (result.size >= dataToQueue.mMessage.size())
         {
