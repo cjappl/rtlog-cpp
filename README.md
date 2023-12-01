@@ -4,14 +4,14 @@
 
 If you're looking for a general use logger, this probably isn't the library for you!
 
-The design behind this logger was presented at ADCx 2023. Check out that presentation [here](https://github.com/cjappl/Conference-Presentations/tree/main/Taming-Real-Time-Logging-ADCx-2023)
+The design behind this logger was presented at ADCx 2023. Presentation [video](https://www.youtube.com/watch?v=4KFFMGTQIFM) and [slides](https://github.com/cjappl/Conference-Presentations/tree/main/Taming-Real-Time-Logging-ADCx-2023).
 
 ## Features
 
 - Ability to log messages of any type and size from the real-time thread
 - Statically allocated memory at compile time, no allocations in the real-time thread
 - Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock)
-- Efficient thread-safe logging using a [lock free queue](https://github.com/cameron314/readerwriterqueue)
+- Efficient thread-safe logging using a [lock free queue](https://github.com/cameron314/readerwriterqueue).
 
 ## Requirements
 
