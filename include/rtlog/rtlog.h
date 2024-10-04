@@ -124,7 +124,7 @@ public:
     {
         va_list args;
         va_start(args, format);
-        auto retVal = Logv(inputData, format, args);
+        auto retVal = Logv(std::move(inputData), format, args);
         va_end(args);
         return retVal;
     }
