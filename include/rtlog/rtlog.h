@@ -56,6 +56,50 @@ class Logger
 {
 public:
 
+    /*
+     * @brief Logs a message with the given format and input data.
+     *
+     * REALTIME SAFE; you are supposed to allocate va_list in realtime safe manner, or expect that the system does not allocate va_args.
+     *
+     * This function logs a message with the given format and input data. The format is specified using printf-style
+     * format specifiers. It's highly recommended you use and respect -Wformat to ensure your format specifiers are correct.
+     *
+     * To actually process the log messages (print, write to file, etc) you must call PrintAndClearLogQueue.
+     *
+     * @param inputData The data to be logged.
+     * @param format The printf-style format specifiers for the message.
+     * @param args The variable arguments to the printf-style format specifiers.
+     * @return Status A Status value indicating whether the logging operation was successful.
+     *
+     * This function attempts to enqueue the log message regardless of whether the message was truncated due to being
+     * too long for the buffer. If the message queue is full, the function returns `Status::Error_QueueFull`. If the
+     * message was truncated, the function returns `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
+    */
+    Status Logv(LogData&& inputData, const char* format, va_list args)
+    {
+        auto retVal = Status::Success;
+
+        InternalLogData dataToQueue;
+        dataToQueue.mLogData = std::forward<LogData>(inputData);
+        dataToQueue.mSequenceNumber = ++SequenceNumber;
+
+        const auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+
+        if (charsPrinted < 0 || static_cast<size_t>(charsPrinted) >= dataToQueue.mMessage.size())
+        {
+            retVal = Status::Error_MessageTruncated;
+        }
+
+        // Even if the message was truncated, we still try to enqueue it to minimize data loss
+        const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+
+        if (!dataWasEnqueued)
+        {
+            retVal = Status::Error_QueueFull;
+        }
+
+        return retVal;
+    }
 
     /*
      * @brief Logs a message with the given format and input data.
@@ -78,30 +122,10 @@ public:
     */
     Status Log(LogData&& inputData, const char* format, ...) __attribute__ ((format (printf, 3, 4)))
     {
-        auto retVal = Status::Success;
-
-        InternalLogData dataToQueue;
-        dataToQueue.mLogData = std::forward<LogData>(inputData);
-        dataToQueue.mSequenceNumber = ++SequenceNumber;
-
         va_list args;
         va_start(args, format);
-        const auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+        auto retVal = Logv(inputData, format, args);
         va_end(args);
-
-        if (charsPrinted < 0 || static_cast<size_t>(charsPrinted) >= dataToQueue.mMessage.size())
-        {
-            retVal = Status::Error_MessageTruncated;
-        }
-
-        // Even if the message was truncated, we still try to enqueue it to minimize data loss
-        const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
-
-        if (!dataWasEnqueued)
-        {
-            retVal = Status::Error_QueueFull;
-        }
-
         return retVal;
     }
 
