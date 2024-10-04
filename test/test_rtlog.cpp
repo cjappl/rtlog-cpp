@@ -102,12 +102,34 @@ TEST_CASE("va_args works as intended")
 {
     rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
 
-    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l); 
+    logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l);
     logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
     logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, %lf!", 123.0);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
     logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
+
+    CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
+}
+
+void vaArgsTest(rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber>& logger, ExampleLogData&& data, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    logger.Logv(std::move(data), format, args);
+    va_end(args);
+}
+
+TEST_CASE("Logv version works as well")
+{
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> logger;
+
+    vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!", 123l);
+    vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!", 123.0f);
+    vaArgsTest(logger, {ExampleLogLevel::Warning, ExampleLogRegion::Network}, "Hello, %lf!", 123.0);
+    vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!", (void*)123);
+    vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!", 123);
+    vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!", "world");
 
     CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
 }
