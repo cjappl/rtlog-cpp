@@ -22,7 +22,7 @@
 
 #include <stb_sprintf.h>
 
-namespace rtlog 
+namespace rtlog
 {
 
 enum class Status
@@ -35,7 +35,7 @@ enum class Status
 
 /**
   * @brief A logger class for logging messages.
-  * This class allows you to log messages of type LogData. 
+  * This class allows you to log messages of type LogData.
   * This type is user defined, and is often the additional data outside the format string you want to log.
   * For instance: The log level, the log region, the file name, the line number, etc.
   * See examples or tests for some ideas.
@@ -46,9 +46,9 @@ enum class Status
   * @tparam MaxNumMessages The maximum number of messages that can be enqueud at once. If this number is exceeded, the logger will return an error.
   * @tparam MaxMessageLength The maximum length of each message. Messages longer than this will be truncated and still enqueued
   * @tparam SequenceNumber This number is incremented when the message is enqueued. It is assumed that your non-realtime logger increments and logs it on Log.
-*/ 
-template <typename LogData, 
-          size_t MaxNumMessages, 
+*/
+template <typename LogData,
+          size_t MaxNumMessages,
           size_t MaxMessageLength,
           std::atomic<std::size_t>& SequenceNumber
           >
@@ -81,7 +81,7 @@ public:
 
         InternalLogData dataToQueue;
         dataToQueue.mLogData = std::forward<LogData>(inputData);
-        dataToQueue.mSequenceNumber = ++SequenceNumber;
+        dataToQueue.mSequenceNumber = SequenceNumber.fetch_add(1, std::memory_order_relaxed);
 
         const auto charsPrinted = stbsp_vsnprintf(dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
 
@@ -109,7 +109,7 @@ public:
      * This function logs a message with the given format and input data. The format is specified using printf-style
      * format specifiers. It's highly recommended you use and respect -Wformat to ensure your format specifiers are correct.
      *
-     * To actually process the log messages (print, write to file, etc) you must call PrintAndClearLogQueue. 
+     * To actually process the log messages (print, write to file, etc) you must call PrintAndClearLogQueue.
      *
      * @param inputData The data to be logged.
      * @param format The printf-style format specifiers for the message.
@@ -159,7 +159,7 @@ public:
 
         InternalLogData dataToQueue;
         dataToQueue.mLogData = std::forward<LogData>(inputData);
-        dataToQueue.mSequenceNumber = ++SequenceNumber;
+        dataToQueue.mSequenceNumber = SequenceNumber.fetch_add(1, std::memory_order_relaxed);
 
         const auto maxMessageLength = dataToQueue.mMessage.size() - 1; // Account for null terminator
 
@@ -187,14 +187,14 @@ public:
     };
 
 #endif // RTLOG_USE_FMTLIB
- 
+
     /**
       * @brief Processes and prints all queued log data.
       *
       * ONLY REALTIME SAFE IF printLogFn IS REALTIME SAFE! - not generally the case
       *
       * This function processes and prints all queued log data. It takes a PrintLogFn object as input, which is used to print
-      * the log data. 
+      * the log data.
       *
       * See tests and examples for some ideas on how to use this function. Using ctad you often don't need to specify the template parameter.
       *
@@ -203,12 +203,12 @@ public:
       * @return int The number of log messages that were processed and printed.
       */
     template<typename PrintLogFn>
-    int PrintAndClearLogQueue(PrintLogFn& printLogFn) 
+    int PrintAndClearLogQueue(PrintLogFn& printLogFn)
     {
         int numProcessed = 0;
 
         InternalLogData value;
-        while (mQueue.try_dequeue(value)) 
+        while (mQueue.try_dequeue(value))
         {
             printLogFn(value.mLogData, value.mSequenceNumber, "%s", value.mMessage.data());
             numProcessed++;
@@ -231,11 +231,11 @@ private:
 
 /**
  * @brief A class representing a log processing thread.
- * 
+ *
  * This class represents a log processing thread that continuously dequeues log data from a LoggerType object and calls
- * a PrintLogFn object to print the log data. The wait time between each log processing iteration can be specified in 
+ * a PrintLogFn object to print the log data. The wait time between each log processing iteration can be specified in
  * milliseconds.
- * 
+ *
  * @tparam LoggerType The type of the logger object to be used for log processing.
  * @tparam PrintLogFn The type of the print log function object.
  */
@@ -246,17 +246,17 @@ public:
 
     /**
      * @brief Constructs a new LogProcessingThread object.
-     * 
-     * This constructor creates a new LogProcessingThread object. It takes a reference to a LoggerType object, 
+     *
+     * This constructor creates a new LogProcessingThread object. It takes a reference to a LoggerType object,
      * generally assumed to be some specialization of rtlog::Logger, a reference to a PrintLogFn object, and a wait time in ms
      *
      * On construction, the LogProcessingThread will start a thread that will continually dequeue the messages from the logger
-     * and call printFn on them. 
+     * and call printFn on them.
      *
      * You must call Stop() to stop the thread and join it before your logger goes out of scope! Otherwise it's a use-after-free
      *
      * See tests and examples for some ideas on how to use this class. Using ctad you often don't need to specify the template parameters.
-     * 
+     *
      * @param logger The logger object to be used for log processing.
      * @param printFn The print log function object to be used to print the log data.
      * @param waitTime The time to wait between each log processing iteration.
