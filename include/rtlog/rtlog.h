@@ -131,7 +131,10 @@ public:
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
   Status Log(LogData &&inputData, const char *format, ...)
-      __attribute__((format(printf, 3, 4))) {
+#ifndef __MSC_VER__
+      __attribute__((format(printf, 3, 4)))
+#endif
+  {
     va_list args;
     va_start(args, format);
     auto retVal = Logv(std::move(inputData), format, args);
