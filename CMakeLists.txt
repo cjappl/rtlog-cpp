@@ -36,6 +36,26 @@ if(NOT TARGET readerwriterqueue)
     FetchContent_MakeAvailable(ReaderWriterQueue)
 endif()
 
+if (NOT TARGET farbot)
+    include(FetchContent)
+
+    FetchContent_Declare(farbot
+        GIT_REPOSITORY https://github.com/hogliux/farbot
+        GIT_TAG 0416705394720c12f0d02e55c144e4f69bb06912
+    )
+    # Note we do not "MakeAvailable" here, because farbot does not fully work via FetchContent
+    if(NOT farbot_POPULATED)
+        FetchContent_Populate(farbot)
+    endif()
+    add_library(farbot INTERFACE)
+    add_library(farbot::farbot ALIAS farbot)
+
+    target_include_directories(farbot INTERFACE
+            $<BUILD_INTERFACE:${farbot_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
+endif()
+
 if(NOT TARGET stb::stb)
     # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -73,6 +93,7 @@ target_link_libraries(rtlog
     INTERFACE 
         readerwriterqueue
         stb::stb
+        farbot::farbot
         $<$<BOOL:${RTLOG_USE_FMTLIB}>:fmt::fmt>
 )
 

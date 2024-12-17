@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 #endif // RTLOG_USE_FMTLIB
 
+#include <farbot/fifo.hpp>
 #include <readerwriterqueue.h>
 
 #ifndef STB_SPRINTF_IMPLEMENTATION
@@ -31,6 +32,11 @@ enum class Status {
   Error_MessageTruncated = 2,
 };
 
+enum class QueueConcurrency {
+  Single_Producer_Single_Consumer = 0,
+  Multi_Producer_Single_Consumer = 1,
+};
+
 /**
  * @brief A logger class for logging messages.
  * This class allows you to log messages of type LogData.
@@ -38,7 +44,8 @@ enum class Status {
  * format string you want to log. For instance: The log level, the log region,
  * the file name, the line number, etc. See examples or tests for some ideas.
  *
- * TODO: Currently is built on a single input/single output queue. Do not call
+ * NOTE: by default, it is built on a single input/single output queue. You have
+ * to specify QueueConcurrency for other types of queues. Otherwise, do not call
  * Log or PrintAndClearLogQueue from multiple threads.
  *
  * @tparam LogData The type of the data to be logged.
@@ -49,9 +56,16 @@ enum class Status {
  * @tparam SequenceNumber This number is incremented when the message is
  * enqueued. It is assumed that your non-realtime logger increments and logs it
  * on Log.
+ * @tparam QueueConcurrency The concurrency type of the internal queue.
+ * The default Single_Producer_Single_Consumer is for the simplest queue that
+ * works in single-producer thread model.
+ * Multi_Producer_Single_Consumer is for such an application that needs to
+ * handle multiple logging clients.
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
-          std::atomic<std::size_t> &SequenceNumber>
+          std::atomic<std::size_t> &SequenceNumber,
+          QueueConcurrency Concurrency =
+              QueueConcurrency::Single_Producer_Single_Consumer>
 class Logger {
 public:
   /*
@@ -97,7 +111,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue->tryEnqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
@@ -196,7 +210,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue->tryEnqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
@@ -227,7 +241,7 @@ public:
     int numProcessed = 0;
 
     InternalLogData value;
-    while (mQueue.try_dequeue(value)) {
+    while (mQueue->tryDequeue(value)) {
       printLogFn(value.mLogData, value.mSequenceNumber, "%s",
                  value.mMessage.data());
       numProcessed++;
@@ -243,7 +257,41 @@ private:
     std::array<char, MaxMessageLength> mMessage{};
   };
 
-  moodycamel::ReaderWriterQueue<InternalLogData> mQueue{MaxNumMessages};
+  class InternalQueue {
+  public:
+    virtual bool tryEnqueue(InternalLogData &&value) = 0;
+    virtual bool tryDequeue(InternalLogData &value) = 0;
+  };
+  class InternalQueueSPSC : public InternalQueue {
+    moodycamel::ReaderWriterQueue<InternalLogData> mQueue{MaxNumMessages};
+
+  public:
+    bool tryEnqueue(InternalLogData &&value) override {
+      return mQueue.try_enqueue(std::move(value));
+    }
+    bool tryDequeue(InternalLogData &value) override {
+      return mQueue.try_dequeue(value);
+    }
+  };
+  class InternalQueueMPSC : public InternalQueue {
+    farbot::fifo<InternalLogData, farbot::fifo_options::concurrency::single,
+                 farbot::fifo_options::concurrency::multiple>
+        mQueue{MaxNumMessages};
+
+  public:
+    bool tryEnqueue(InternalLogData &&value) override {
+      return mQueue.push(std::move(value));
+    }
+    bool tryDequeue(InternalLogData &value) override {
+      return mQueue.pop(value);
+    }
+  };
+
+  std::unique_ptr<InternalQueue> mQueue{
+      Concurrency == QueueConcurrency::Single_Producer_Single_Consumer
+          ? (std::unique_ptr<InternalQueue>)
+                std::make_unique<InternalQueueSPSC>()
+          : std::make_unique<InternalQueueMPSC>()};
 };
 
 /**

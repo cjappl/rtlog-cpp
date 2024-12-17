@@ -6,7 +6,7 @@ namespace rtlog::test {
 std::atomic<std::size_t> gSequenceNumber{0};
 
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
-constexpr auto MAX_NUM_LOG_MESSAGES = 100;
+constexpr auto MAX_NUM_LOG_MESSAGES = 128;
 
 enum class ExampleLogLevel { Debug, Info, Warning, Critical };
 
@@ -69,6 +69,22 @@ using namespace rtlog::test;
 TEST_CASE("Test rtlog basic construction") {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
+      logger;
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             "Hello, world!");
+
+  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 4);
+}
+
+TEST_CASE("Test rtlog MPSC basic construction") {
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber,
+                rtlog::QueueConcurrency::Multi_Producer_Single_Consumer>
       logger;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, world!");
@@ -199,7 +215,7 @@ TEST_CASE("Errors are returned from Log") {
   }
 
   SUBCASE("Enqueue more than capacity and get an error") {
-    const auto maxNumMessages = 10;
+    const auto maxNumMessages = 16;
     rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
                   gSequenceNumber>
         logger;
