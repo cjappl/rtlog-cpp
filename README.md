@@ -11,13 +11,14 @@ The design behind this logger was presented at ADCx 2023. Presentation [video](h
 - Ability to log messages of any type and size from the real-time thread
 - Statically allocated memory at compile time, no allocations in the real-time thread
 - Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock)
-- Efficient thread-safe logging using a [lock free queue](https://github.com/cameron314/readerwriterqueue).
+- Efficient thread-safe logging using lock free queues (either [single consumer](https://github.com/cameron314/readerwriterqueue) or [multi consumer](https://github.com/hogliux/farbot)).
 
 ## Requirements
 
 - A C++17 compatible compiler
 - The C++17 standard library
 - moodycamel::ReaderWriterQueue (will be downloaded via cmake if not provided)
+- farbot's fifo (will be downloaded via cmake if not provided)
 - stb's vsnprintf (will be downloaded via cmake if not provided)
 
 ## Installation via CMake
