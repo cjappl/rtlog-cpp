@@ -259,6 +259,7 @@ private:
 
   class InternalQueue {
   public:
+    virtual ~InternalQueue() = default;
     virtual bool tryEnqueue(InternalLogData &&value) = 0;
     virtual bool tryDequeue(InternalLogData &value) = 0;
   };
