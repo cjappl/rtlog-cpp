@@ -22,9 +22,13 @@
 
 #include <stb_sprintf.h>
 
-#if defined(__has_feature) && __has_feature(realtime_sanitizer)
+#if defined(__has_feature)
+#if __has_feature(realtime_sanitizer)
 #define RTLOG_NONBLOCKING [[clang::nonblocking]]
-#else
+#endif
+#endif
+
+#ifndef RTLOG_NONBLOCKING
 #define RTLOG_NONBLOCKING
 #endif
 
