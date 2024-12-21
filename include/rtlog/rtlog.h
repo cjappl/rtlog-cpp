@@ -336,4 +336,8 @@ private:
   std::chrono::milliseconds mWaitTime{};
 };
 
+template <typename LoggerType, typename PrintLogFn>
+LogProcessingThread(LoggerType &, PrintLogFn)
+    -> LogProcessingThread<LoggerType, PrintLogFn>;
+
 } // namespace rtlog

@@ -4,14 +4,14 @@
 
 namespace rtlog::test {
 
-std::atomic<std::size_t> gSequenceNumber{0};
+static std::atomic<std::size_t> gSequenceNumber{0};
 
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
 constexpr auto MAX_NUM_LOG_MESSAGES = 100;
 
 enum class ExampleLogLevel { Debug, Info, Warning, Critical };
 
-const char *to_string(ExampleLogLevel level) {
+static const char *to_string(ExampleLogLevel level) {
   switch (level) {
   case ExampleLogLevel::Debug:
     return "DEBG";
@@ -28,7 +28,7 @@ const char *to_string(ExampleLogLevel level) {
 
 enum class ExampleLogRegion { Engine, Game, Network, Audio };
 
-const char *to_string(ExampleLogRegion region) {
+static const char *to_string(ExampleLogRegion region) {
   switch (region) {
   case ExampleLogRegion::Engine:
     return "ENGIN";
@@ -88,9 +88,9 @@ TEST(RtlogTest, VaArgsWorksAsIntended) {
       logger;
 
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
-             123l);
+             123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
-             123.0f);
+             123.0);
   logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
@@ -118,9 +118,9 @@ TEST(RtlogTest, LogvVersionWorks) {
       logger;
 
   vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-             "Hello, %lu!", 123l);
+             "Hello, %lu!", 123ul);
   vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
-             "Hello, %f!", 123.0f);
+             "Hello, %f!", 123.0);
   vaArgsTest(logger, {ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
@@ -142,9 +142,9 @@ TEST(RtlogTest, LoggerThreadDoesItsJob) {
                                     std::chrono::milliseconds(10));
 
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
-             123l);
+             123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
-             123.0f);
+             123.0);
   logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
@@ -163,7 +163,7 @@ TEST(RtlogTest, ErrorsReturnedFromLog) {
       logger;
 
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       "Hello, %lu!", 123l),
+                       "Hello, %lu!", 123ul),
             rtlog::Status::Success);
 
   const auto maxMessageLength = 10;
@@ -172,7 +172,7 @@ TEST(RtlogTest, ErrorsReturnedFromLog) {
       truncatedLogger;
   EXPECT_EQ(
       truncatedLogger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                          "Hello, %lu! xxxxxxxxxxx", 123l),
+                          "Hello, %lu! xxxxxxxxxxx", 123ul),
       rtlog::Status::Error_MessageTruncated);
 
   // Inspect truncated message
