@@ -276,7 +276,9 @@ private:
   };
   class InternalQueueMPSC : public InternalQueue {
     farbot::fifo<InternalLogData, farbot::fifo_options::concurrency::single,
-                 farbot::fifo_options::concurrency::multiple>
+                 farbot::fifo_options::concurrency::multiple,
+                 farbot::fifo_options::full_empty_failure_mode::return_false_on_full_or_empty,
+                 farbot::fifo_options::full_empty_failure_mode::overwrite_or_return_default>
         mQueue{MaxNumMessages};
 
   public:
