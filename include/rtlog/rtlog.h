@@ -280,6 +280,11 @@ private:
         mQueue{MaxNumMessages};
 
   public:
+    InternalQueueMPSC() {
+        static_assert((MaxNumMessages & (MaxNumMessages - 1)) == 0 ||
+                      Concurrency != QueueConcurrency::Multi_Producer_Single_Consumer,
+                      "you have to assign 2^n to MaxNumMessages (farbot backend restriction)");
+    }
     bool tryEnqueue(InternalLogData &&value) override {
       return mQueue.push(std::move(value));
     }
