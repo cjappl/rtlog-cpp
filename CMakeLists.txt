@@ -4,6 +4,7 @@ project(rtlog VERSION 1.0.0)
 option(RTLOG_USE_FMTLIB "Use fmtlib for formatting" OFF)
 option(RTLOG_FULL_WARNINGS "Enable full warnings" OFF)
 option(RTLOG_BUILD_TESTS "Build tests" OFF)
+option(RTLOG_BUILD_EXAMPLES "Build examples" OFF)
 
 # Add library header files
 set(HEADERS
@@ -71,6 +72,7 @@ if (RTLOG_USE_FMTLIB AND NOT TARGET fmt::fmt)
 
     FetchContent_Declare(fmtlib
         GIT_REPOSITORY https://github.com/fmtlib/fmt 
+        GIT_TAG 11.0.2
     )
     FetchContent_MakeAvailable(fmtlib)
 endif()
@@ -102,7 +104,6 @@ if(RTLOG_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
-option(RTLOG_BUILD_EXAMPLES "Build examples" ON)
 if(RTLOG_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
