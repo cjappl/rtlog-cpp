@@ -22,6 +22,22 @@
 
 #include <stb_sprintf.h>
 
+#if defined(__has_feature)
+#if __has_feature(realtime_sanitizer)
+#define RTLOG_NONBLOCKING [[clang::nonblocking]]
+#endif
+#endif
+
+#ifndef RTLOG_NONBLOCKING
+#define RTLOG_NONBLOCKING
+#endif
+
+#ifndef __MSC_VER__
+#define RTLOG_ATTRIBUTE_FORMAT __attribute__((format(printf, 3, 4)))
+#else
+#define RTLOG_ATTRIBUTE_FORMAT
+#endif
+
 namespace rtlog {
 
 enum class Status {
@@ -80,7 +96,8 @@ public:
    * message was truncated, the function returns
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
-  Status Logv(LogData &&inputData, const char *format, va_list args) {
+  Status Logv(LogData &&inputData, const char *format,
+              va_list args) RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
@@ -130,11 +147,8 @@ public:
    * message was truncated, the function returns
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
-  Status Log(LogData &&inputData, const char *format, ...)
-#ifndef __MSC_VER__
-      __attribute__((format(printf, 3, 4)))
-#endif
-  {
+  Status Log(LogData &&inputData, const char *format,
+             ...) RTLOG_NONBLOCKING RTLOG_ATTRIBUTE_FORMAT {
     va_list args;
     va_start(args, format);
     auto retVal = Logv(std::move(inputData), format, args);
@@ -173,7 +187,7 @@ public:
    */
   template <typename... T>
   Status LogFmt(LogData &&inputData, fmt::format_string<T...> fmtString,
-                T &&...args) {
+                T &&...args) RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
