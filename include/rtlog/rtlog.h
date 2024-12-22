@@ -5,6 +5,8 @@
 #include <cstdarg>
 #include <cstdio>
 #include <thread>
+#include <type_traits>
+#include <utility>
 
 #ifdef RTLOG_USE_FMTLIB
 #include <fmt/format.h>
@@ -23,7 +25,29 @@
 
 #include <stb_sprintf.h>
 
+#if defined(__has_feature)
+#if __has_feature(realtime_sanitizer)
+#define RTLOG_NONBLOCKING [[clang::nonblocking]]
+#endif
+#endif
+
+#ifndef RTLOG_NONBLOCKING
+#define RTLOG_NONBLOCKING
+#endif
+
+#ifndef __MSC_VER__
+#define RTLOG_ATTRIBUTE_FORMAT __attribute__((format(printf, 3, 4)))
+#else
+#define RTLOG_ATTRIBUTE_FORMAT
+#endif
+
 namespace rtlog {
+
+template <typename LogData, size_t MaxMessageLength> struct BasicLogData {
+  LogData mLogData{};
+  size_t mSequenceNumber{};
+  std::array<char, MaxMessageLength> mMessage{};
+};
 
 enum class Status {
   Success = 0,
@@ -32,10 +56,29 @@ enum class Status {
   Error_MessageTruncated = 2,
 };
 
-enum class QueueConcurrency {
-  Single_Producer_Single_Consumer = 0,
-  Multi_Producer_Single_Consumer = 1,
-};
+namespace detail {
+template <typename T, typename = void>
+struct has_try_enqueue : std::false_type {};
+
+template <typename T>
+struct has_try_enqueue<T, std::void_t<decltype(std::declval<T>().try_enqueue(
+                              std::declval<typename T::value_type>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_try_enqueue_v = has_try_enqueue<T>::value;
+
+template <typename T, typename = void>
+struct has_try_dequeue : std::false_type {};
+
+template <typename T>
+struct has_try_dequeue<T, std::void_t<decltype(std::declval<T>().try_dequeue(
+                              std::declval<typename T::value_type &>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
+} // namespace detail
 
 /**
  * @brief A logger class for logging messages.
@@ -43,10 +86,6 @@ enum class QueueConcurrency {
  * This type is user defined, and is often the additional data outside the
  * format string you want to log. For instance: The log level, the log region,
  * the file name, the line number, etc. See examples or tests for some ideas.
- *
- * NOTE: by default, it is built on a single input/single output queue. You have
- * to specify QueueConcurrency for other types of queues. Otherwise, do not call
- * Log or PrintAndClearLogQueue from multiple threads.
  *
  * @tparam LogData The type of the data to be logged.
  * @tparam MaxNumMessages The maximum number of messages that can be enqueud at
@@ -56,18 +95,23 @@ enum class QueueConcurrency {
  * @tparam SequenceNumber This number is incremented when the message is
  * enqueued. It is assumed that your non-realtime logger increments and logs it
  * on Log.
- * @tparam QueueConcurrency The concurrency type of the internal queue.
- * The default Single_Producer_Single_Consumer is for the simplest queue that
- * works in single-producer thread model.
- * Multi_Producer_Single_Consumer is for such an application that needs to
- * handle multiple logging clients.
+ * @tparam QType is the configurable underlying queue. By default it is a SPSC
+ * queue from moodycamel. WARNING! It is up to the user to ensure this queue
+ * type is real-time safe!!
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
           std::atomic<std::size_t> &SequenceNumber,
-          QueueConcurrency Concurrency =
-              QueueConcurrency::Single_Producer_Single_Consumer>
+          template <typename> class QType = moodycamel::ReaderWriterQueue>
 class Logger {
 public:
+  using InternalLogData = BasicLogData<LogData, MaxMessageLength>;
+  using InternalQType = QType<InternalLogData>;
+
+  static_assert(detail::has_try_enqueue_v<InternalQType>,
+                "QType must have a try_enqueue method");
+  static_assert(detail::has_try_dequeue_v<InternalQType>,
+                "QType must have a try_dequeue method");
+
   /*
    * @brief Logs a message with the given format and input data.
    *
@@ -94,7 +138,8 @@ public:
    * message was truncated, the function returns
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
-  Status Logv(LogData &&inputData, const char *format, va_list args) {
+  Status Logv(LogData &&inputData, const char *format,
+              va_list args) RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
@@ -144,11 +189,8 @@ public:
    * message was truncated, the function returns
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
-  Status Log(LogData &&inputData, const char *format, ...)
-#ifndef __MSC_VER__
-      __attribute__((format(printf, 3, 4)))
-#endif
-  {
+  Status Log(LogData &&inputData, const char *format,
+             ...) RTLOG_NONBLOCKING RTLOG_ATTRIBUTE_FORMAT {
     va_list args;
     va_start(args, format);
     auto retVal = Logv(std::move(inputData), format, args);
@@ -187,7 +229,7 @@ public:
    */
   template <typename... T>
   Status LogFmt(LogData &&inputData, fmt::format_string<T...> fmtString,
-                T &&...args) {
+                T &&...args) RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
@@ -251,55 +293,7 @@ public:
   }
 
 private:
-  struct InternalLogData {
-    LogData mLogData{};
-    size_t mSequenceNumber{};
-    std::array<char, MaxMessageLength> mMessage{};
-  };
-
-  class InternalQueue {
-  public:
-    virtual ~InternalQueue() = default;
-    virtual bool tryEnqueue(InternalLogData &&value) = 0;
-    virtual bool tryDequeue(InternalLogData &value) = 0;
-  };
-  class InternalQueueSPSC : public InternalQueue {
-    moodycamel::ReaderWriterQueue<InternalLogData> mQueue{MaxNumMessages};
-
-  public:
-    bool tryEnqueue(InternalLogData &&value) override {
-      return mQueue.try_enqueue(std::move(value));
-    }
-    bool tryDequeue(InternalLogData &value) override {
-      return mQueue.try_dequeue(value);
-    }
-  };
-  class InternalQueueMPSC : public InternalQueue {
-    farbot::fifo<InternalLogData, farbot::fifo_options::concurrency::single,
-                 farbot::fifo_options::concurrency::multiple,
-                 farbot::fifo_options::full_empty_failure_mode::return_false_on_full_or_empty,
-                 farbot::fifo_options::full_empty_failure_mode::overwrite_or_return_default>
-        mQueue{MaxNumMessages};
-
-  public:
-    InternalQueueMPSC() {
-        static_assert((MaxNumMessages & (MaxNumMessages - 1)) == 0 ||
-                      Concurrency != QueueConcurrency::Multi_Producer_Single_Consumer,
-                      "you have to assign 2^n to MaxNumMessages (farbot backend restriction)");
-    }
-    bool tryEnqueue(InternalLogData &&value) override {
-      return mQueue.push(std::move(value));
-    }
-    bool tryDequeue(InternalLogData &value) override {
-      return mQueue.pop(value);
-    }
-  };
-
-  std::unique_ptr<InternalQueue> mQueue{
-      Concurrency == QueueConcurrency::Single_Producer_Single_Consumer
-          ? (std::unique_ptr<InternalQueue>)
-                std::make_unique<InternalQueueSPSC>()
-          : std::make_unique<InternalQueueMPSC>()};
+  InternalQType mQueue{MaxNumMessages};
 };
 
 /**

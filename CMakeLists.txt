@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.6)
 project(rtlog VERSION 1.0.0)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 17) # TODO: we only use 17 for CTAD type things, can we get away with 11 ?
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(RTLOG_USE_FMTLIB "Use fmtlib for formatting" OFF)
+option(RTLOG_FULL_WARNINGS "Enable full warnings" OFF)
+option(RTLOG_BUILD_TESTS "Build tests" OFF)
 
 # Add library header files
 set(HEADERS
@@ -13,6 +13,12 @@ set(HEADERS
 # Create library target
 add_library(rtlog INTERFACE)
 add_library(rtlog::rtlog ALIAS rtlog)
+
+if (CMAKE_CXX_STANDARD LESS 17)
+  message(WARNING "C++17 or higher is required for rtlog. Setting C++17 for the target..")
+endif()
+
+target_compile_features(rtlog INTERFACE cxx_std_17)
 
 # Set include directories for library
 target_include_directories(rtlog INTERFACE
@@ -110,7 +116,6 @@ target_compile_options(rtlog
         $<$<BOOL:${RTLOG_FULL_WARNINGS}>:-Wall -Werror -Wformat -Wextra -Wformat-security -Wno-unused-function>
 )
 
-option(RTLOG_BUILD_TESTS "Build tests" ON)
 if(RTLOG_BUILD_TESTS)
     include(CTest)
     set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
