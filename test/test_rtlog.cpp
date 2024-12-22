@@ -1,16 +1,17 @@
-#include <doctest/doctest.h>
 #include <rtlog/rtlog.h>
+
+#include <gtest/gtest.h>
 
 namespace rtlog::test {
 
-std::atomic<std::size_t> gSequenceNumber{0};
+static std::atomic<std::size_t> gSequenceNumber{0};
 
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
 constexpr auto MAX_NUM_LOG_MESSAGES = 128;
 
 enum class ExampleLogLevel { Debug, Info, Warning, Critical };
 
-const char *to_string(ExampleLogLevel level) {
+static const char *to_string(ExampleLogLevel level) {
   switch (level) {
   case ExampleLogLevel::Debug:
     return "DEBG";
@@ -27,7 +28,7 @@ const char *to_string(ExampleLogLevel level) {
 
 enum class ExampleLogRegion { Engine, Game, Network, Audio };
 
-const char *to_string(ExampleLogRegion region) {
+static const char *to_string(ExampleLogRegion region) {
   switch (region) {
   case ExampleLogRegion::Engine:
     return "ENGIN";
@@ -66,7 +67,7 @@ static auto PrintMessage =
 
 using namespace rtlog::test;
 
-TEST_CASE("Test rtlog basic construction") {
+TEST(RtlogTest, BasicConstruction) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
@@ -78,10 +79,10 @@ TEST_CASE("Test rtlog basic construction") {
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
              "Hello, world!");
 
-  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 4);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
 }
 
-TEST_CASE("Test rtlog MPSC basic construction") {
+TEST(RtlogTest, MPSCWorksAsIntended) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber,
                 rtlog::QueueConcurrency::Multi_Producer_Single_Consumer>
@@ -94,18 +95,18 @@ TEST_CASE("Test rtlog MPSC basic construction") {
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
              "Hello, world!");
 
-  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 4);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
 }
 
-TEST_CASE("va_args works as intended") {
+TEST(RtlogTest, VaArgsWorksAsIntended) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
 
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
-             123l);
+             123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
-             123.0f);
+             123.0);
   logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
@@ -115,7 +116,7 @@ TEST_CASE("va_args works as intended") {
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!",
              "world");
 
-  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
 void vaArgsTest(rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES,
@@ -127,15 +128,15 @@ void vaArgsTest(rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES,
   va_end(args);
 }
 
-TEST_CASE("Logv version works as well") {
+TEST(RtlogTest, LogvVersionWorks) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
 
   vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-             "Hello, %lu!", 123l);
+             "Hello, %lu!", 123ul);
   vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
-             "Hello, %f!", 123.0f);
+             "Hello, %f!", 123.0);
   vaArgsTest(logger, {ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
@@ -145,10 +146,10 @@ TEST_CASE("Logv version works as well") {
   vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
              "Hello, %s!", "world");
 
-  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-TEST_CASE("LoggerThread does it's job") {
+TEST(RtlogTest, LoggerThreadDoesItsJob) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
@@ -157,9 +158,9 @@ TEST_CASE("LoggerThread does it's job") {
                                     std::chrono::milliseconds(10));
 
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
-             123l);
+             123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
-             123.0f);
+             123.0);
   logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
   logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
@@ -172,74 +173,46 @@ TEST_CASE("LoggerThread does it's job") {
   thread.Stop();
 }
 
-TEST_CASE("Errors are returned from Log") {
-  SUBCASE("Success on normal enqueue") {
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                  gSequenceNumber>
-        logger;
+TEST(RtlogTest, ErrorsReturnedFromLog) {
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber>
+      logger;
 
-    CHECK(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                     "Hello, %lu!", 123l) == rtlog::Status::Success);
-  }
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       "Hello, %lu!", 123ul),
+            rtlog::Status::Success);
 
-  SUBCASE("On a very long message, get truncation") {
-    const auto maxMessageLength = 10;
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
-                  gSequenceNumber>
-        logger;
-    CHECK(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                     "Hello, %lu! xxxxxxxxxxx",
-                     123l) == rtlog::Status::Error_MessageTruncated);
+  const auto maxMessageLength = 10;
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
+                gSequenceNumber>
+      truncatedLogger;
+  EXPECT_EQ(
+      truncatedLogger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                          "Hello, %lu! xxxxxxxxxxx", 123ul),
+      rtlog::Status::Error_MessageTruncated);
 
-    SUBCASE("And you get a trunctated message out if you try to process") {
-      auto InspectLogMessage = [](const ExampleLogData &data,
-                                  size_t sequenceNumber, const char *fstring,
-                                  ...) {
-        (void)sequenceNumber;
+  // Inspect truncated message
+  auto InspectLogMessage = [](const ExampleLogData &data, size_t sequenceNumber,
+                              const char *fstring, ...) {
+    (void)sequenceNumber;
+    EXPECT_EQ(data.level, ExampleLogLevel::Debug);
+    EXPECT_EQ(data.region, ExampleLogRegion::Engine);
 
-        CHECK(data.level == ExampleLogLevel::Debug);
-        CHECK(data.region == ExampleLogRegion::Engine);
+    std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
+    va_list args;
+    va_start(args, fstring);
+    vsnprintf(buffer.data(), buffer.size(), fstring, args);
+    va_end(args);
 
-        std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
-        va_list args;
-        va_start(args, fstring);
-        vsnprintf(buffer.data(), buffer.size(), fstring, args);
-        va_end(args);
-
-        CHECK(buffer.data() == "Hello, 12");
-        CHECK(strlen(buffer.data()) == maxMessageLength - 1);
-      };
-
-      CHECK(logger.PrintAndClearLogQueue(InspectLogMessage) == 1);
-    }
-  }
-
-  SUBCASE("Enqueue more than capacity and get an error") {
-    const auto maxNumMessages = 16;
-    rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
-                  gSequenceNumber>
-        logger;
-
-    auto status = rtlog::Status::Success;
-    auto numMessagesEnqueued = 0;
-    while (status == rtlog::Status::Success) {
-      status = logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                          "Hello, %s!", "world");
-      if (status == rtlog::Status::Success) {
-        ++numMessagesEnqueued;
-      }
-    }
-
-    // NOTE: This isn't a hard limit, it's up to moodycamel to decide what the
-    // exact block size is on my machine setting a maxNumMessages of 10 results
-    // in a block size of 16!
-    CHECK(status == rtlog::Status::Error_QueueFull);
-  }
+    EXPECT_STREQ(buffer.data(), "Hello, 12");
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+  };
+  EXPECT_EQ(truncatedLogger.PrintAndClearLogQueue(InspectLogMessage), 1);
 }
 
 #ifdef RTLOG_USE_FMTLIB
 
-TEST_CASE("Formatlib version works as intended") {
+TEST(LoggerTest, FormatLibVersionWorksAsIntended) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
@@ -257,73 +230,62 @@ TEST_CASE("Formatlib version works as intended") {
   logger.LogFmt({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
                 FMT_STRING("Hello, {}!"), "world");
 
-  CHECK(logger.PrintAndClearLogQueue(PrintMessage) == 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-TEST_CASE("Errors are returned from LogFmt") {
-  SUBCASE("Success on normal enqueue") {
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                  gSequenceNumber>
-        logger;
+TEST(LoggerTest, LogFmtReturnsSuccessOnNormalEnqueue) {
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber>
+      logger;
+  EXPECT_EQ(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                          FMT_STRING("Hello, {}!"), 123l),
+            rtlog::Status::Success);
+}
 
-    CHECK(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                        FMT_STRING("Hello, {}!"),
-                        123l) == rtlog::Status::Success);
+TEST(LoggerTest, LogFmtHandlesLongMessageTruncation) {
+  const auto maxMessageLength = 10;
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
+                gSequenceNumber>
+      logger;
+
+  EXPECT_EQ(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                          FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
+            rtlog::Status::Error_MessageTruncated);
+
+  auto InspectLogMessage = [](const ExampleLogData &data, size_t sequenceNumber,
+                              const char *fstring, ...) {
+    (void)sequenceNumber;
+
+    EXPECT_EQ(data.level, ExampleLogLevel::Debug);
+    EXPECT_EQ(data.region, ExampleLogRegion::Engine);
+
+    std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
+    va_list args;
+    va_start(args, fstring);
+    vsnprintf(buffer.data(), buffer.size(), fstring, args);
+    va_end(args);
+
+    EXPECT_STREQ(buffer.data(), "Hello, 12");
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+  };
+
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 1);
+}
+
+TEST(LoggerTest, LogFmtHandlesQueueFullError) {
+  const auto maxNumMessages = 10;
+  rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber>
+      logger;
+
+  auto status = rtlog::Status::Success;
+
+  while (status == rtlog::Status::Success) {
+    status = logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                           FMT_STRING("Hello, {}!"), "world");
   }
 
-  SUBCASE("On a very long message, get truncation") {
-    const auto maxMessageLength = 10;
-    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
-                  gSequenceNumber>
-        logger;
-    CHECK(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                        FMT_STRING("Hello, {}! xxxxxxxxxxx"),
-                        123l) == rtlog::Status::Error_MessageTruncated);
-
-    SUBCASE("And you get a truncated message out if you try to process") {
-      auto InspectLogMessage = [](const ExampleLogData &data,
-                                  size_t sequenceNumber, const char *fstring,
-                                  ...) {
-        (void)sequenceNumber;
-
-        CHECK(data.level == ExampleLogLevel::Debug);
-        CHECK(data.region == ExampleLogRegion::Engine);
-
-        std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer{};
-        va_list args;
-        va_start(args, fstring);
-        vsnprintf(buffer.data(), buffer.size(), fstring, args);
-        va_end(args);
-
-        CHECK(buffer.data() == "Hello, 12");
-        CHECK(strlen(buffer.data()) == maxMessageLength - 1);
-      };
-
-      CHECK(logger.PrintAndClearLogQueue(InspectLogMessage) == 1);
-    }
-  }
-
-  SUBCASE("Enqueue more than capacity and get an error") {
-    const auto maxNumMessages = 10;
-    rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
-                  gSequenceNumber>
-        logger;
-
-    auto status = rtlog::Status::Success;
-    auto numMessagesEnqueued = 0;
-    while (status == rtlog::Status::Success) {
-      status = logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             FMT_STRING("Hello, {}!"), "world");
-      if (status == rtlog::Status::Success) {
-        ++numMessagesEnqueued;
-      }
-    }
-
-    // NOTE: This isn't a hard limit, it's up to moodycamel to decide what the
-    // exact block size is on my machine setting a maxNumMessages of 10 results
-    // in a block size of 16!
-    CHECK(status == rtlog::Status::Error_QueueFull);
-  }
+  EXPECT_EQ(status, rtlog::Status::Error_QueueFull);
 }
 
 #endif // RTLOG_USE_FMTLIB
