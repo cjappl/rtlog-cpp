@@ -97,7 +97,7 @@ public:
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
   Status Logv(LogData &&inputData, const char *format,
-              va_list args) RTLOG_NONBLOCKING {
+              va_list args) noexcept RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
@@ -148,7 +148,7 @@ public:
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
   Status Log(LogData &&inputData, const char *format,
-             ...) RTLOG_NONBLOCKING RTLOG_ATTRIBUTE_FORMAT {
+             ...) noexcept RTLOG_NONBLOCKING RTLOG_ATTRIBUTE_FORMAT {
     va_list args;
     va_start(args, format);
     auto retVal = Logv(std::move(inputData), format, args);
@@ -187,7 +187,7 @@ public:
    */
   template <typename... T>
   Status LogFmt(LogData &&inputData, fmt::format_string<T...> fmtString,
-                T &&...args) RTLOG_NONBLOCKING {
+                T &&...args) noexcept RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;
