@@ -86,6 +86,13 @@ template <typename T>
 inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
 } // namespace detail
 
+// On earlier versions of compilers (especially clang) you cannot
+// rely on defaulted template template parameters working as intended
+// This overload explicitly has 1 template paramter which is what
+// `Logger` expects, it uses the default 512 from ReaderWriterQueue as
+// the hardcoded MaxBlockSize
+template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
+
 /**
  * @brief A logger class for logging messages.
  * This class allows you to log messages of type LogData.
@@ -104,10 +111,15 @@ inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
  * @tparam QType is the configurable underlying queue. By default it is a SPSC
  * queue from moodycamel. WARNING! It is up to the user to ensure this queue
  * type is real-time safe!!
+ *
+ * Requirements on QType:
+ *     1. Is real-time safe
+ *     2. Accepts one type template paramter for the type to be queued
+ *     3. Has methods `try_enqueue` and `try_dequeue`
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
           std::atomic<std::size_t> &SequenceNumber,
-          template <typename> class QType = moodycamel::ReaderWriterQueue>
+          template <typename> class QType = rtlog_SPSC>
 class Logger {
 public:
   using InternalLogData = BasicLogData<LogData, MaxMessageLength>;
