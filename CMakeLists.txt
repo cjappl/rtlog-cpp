@@ -6,6 +6,16 @@ option(RTLOG_FULL_WARNINGS "Enable full warnings" OFF)
 option(RTLOG_BUILD_TESTS "Build tests" OFF)
 option(RTLOG_BUILD_EXAMPLES "Build examples" OFF)
 
+
+set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-fsanitize=realtime" COMPILER_SUPPORTS_RTSAN)
+unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+if(COMPILER_SUPPORTS_RTSAN)
+  message(STATUS "Compiler supports -fsanitize=realtime, enabling RTLOG_USE_RTSAN option.")
+  option(RTLOG_USE_RTSAN "Use -fsanitize=realtime" ON)
+endif()
+
 # Add library header files
 set(HEADERS
   include/rtlog/rtlog.h
@@ -95,6 +105,12 @@ target_compile_definitions(rtlog
 target_compile_options(rtlog 
     INTERFACE 
         $<$<BOOL:${RTLOG_FULL_WARNINGS}>:-Wall -Werror -Wformat -Wextra -Wformat-security -Wno-unused-function>
+        $<$<BOOL:${RTLOG_USE_RTSAN}>:-fsanitize=realtime>
+)
+
+target_link_options(rtlog
+    INTERFACE
+        $<$<BOOL:${RTLOG_USE_RTSAN}>:-fsanitize=realtime>
 )
 
 if(RTLOG_BUILD_TESTS)
