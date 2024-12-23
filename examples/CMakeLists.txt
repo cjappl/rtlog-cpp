@@ -1,1 +1,2 @@
 add_subdirectory(everlog)
+add_subdirectory(custom_queue_example)

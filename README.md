@@ -127,3 +127,34 @@ Or alternatively spin up a `rtlog::LogProcessingThread`
 ```c++
     rtlog::LogProcessingThread thread(logger, PrintMessage, std::chrono::milliseconds(10));
 ```
+
+## Customizing the queue type
+
+If you don't want to use the SPSC moodycamel queue, you can provide your own queue type. 
+
+** IT IS UP TO YOU TO ENSURE THE QUEUE YOU PROVIDE IS LOCK-FREE AND REAL-TIME SAFE **
+
+The queue must have the following:
+```c++
+template <typename T>
+class MyQueue
+{
+public:
+    using value_type = T;
+
+    MyQueue(int capacity);
+    bool try_dequeue(T& item); // MUST return false if the queue is empty
+
+    bool try_enqueue(T&& item);
+    // OR
+    bool try_enqueue(const T& item);
+};
+```
+
+Then, when creating the logger, provide the queue type as a template parameter:
+
+```c++
+using RealtimeLogger = rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber, MyQueue>;
+```
+
+You can see an example of wrapping a known rt-safe queue in `examples/custom_queue_example`.

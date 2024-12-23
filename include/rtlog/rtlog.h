@@ -154,8 +154,10 @@ template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
  * Requirements on QType:
  *     1. Is real-time safe
  *     2. Accepts one type template paramter for the type to be queued
- *     3. Has a constructor that takes an integer which will be the queue's capacity
- *     4. Has methods `bool try_enqueue(T &&item)` and/or `bool try_enqueue(const T &item)` and `bool try_dequeue(T &item)`
+ *     3. Has a constructor that takes an integer which will be the queue's
+ * capacity
+ *     4. Has methods `bool try_enqueue(T &&item)` and/or `bool
+ * try_enqueue(const T &item)` and `bool try_dequeue(T &item)`
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
           std::atomic<std::size_t> &SequenceNumber,
