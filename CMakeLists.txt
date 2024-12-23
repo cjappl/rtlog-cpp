@@ -107,7 +107,7 @@ set(RTLOG_ALL_WARNINGS)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(RTLOG_ALL_WARNINGS "-Wall;-Werror;-Wformat;-Wextra;-Wformat-security;-Wno-unused-function")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  set(RTLOG_ALL_WARNINGS "")
+  set(RTLOG_ALL_WARNINGS "/W4;/WX;/wd4505")
 endif()
 
 target_compile_options(rtlog 
