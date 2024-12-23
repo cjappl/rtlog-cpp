@@ -82,6 +82,21 @@ TEST(RtlogTest, BasicConstruction) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
 }
 
+TEST(RtlogTest, BasicConstructionMPSC) {
+  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber, rtlog::rtlog_MPSC>
+      logger;
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             "Hello, world!");
+
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
+}
+
 TEST(RtlogTest, VaArgsWorksAsIntended) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>

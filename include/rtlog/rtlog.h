@@ -80,12 +80,34 @@ template <typename T>
 inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
 } // namespace detail
 
+template<typename T, size_t MaxNumItem>
+class FarbotMPSCQueueWrapper {
+  farbot::fifo<T, farbot::fifo_options::concurrency::single,
+               farbot::fifo_options::concurrency::multiple,
+               farbot::fifo_options::full_empty_failure_mode::
+                   return_false_on_full_or_empty,
+               farbot::fifo_options::full_empty_failure_mode::
+                   overwrite_or_return_default>
+      mQueue{MaxNumItem};
+public:
+  bool try_enqueue(T const & item) {
+    return mQueue.push(std::move(item));
+  }
+  bool try_enqueue(T && item) {
+    return mQueue.push(std::move(item));
+  }
+  bool try_dequeue(T &item) {
+    return mQueue.pop(item);
+  }
+};
+
 // On earlier versions of compilers (especially clang) you cannot
 // rely on defaulted template template parameters working as intended
 // This overload explicitly has 1 template paramter which is what
 // `Logger` expects, it uses the default 512 from ReaderWriterQueue as
 // the hardcoded MaxBlockSize
 template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
+template <typename T> using rtlog_MPSC = rtlog::FarbotMPSCQueueWrapper<T, 512>;
 
 /**
  * @brief A logger class for logging messages.
