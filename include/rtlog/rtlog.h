@@ -49,12 +49,6 @@
 
 namespace rtlog {
 
-template <typename LogData, size_t MaxMessageLength> struct BasicLogData {
-  LogData mLogData{};
-  size_t mSequenceNumber{};
-  std::array<char, MaxMessageLength> mMessage{};
-};
-
 enum class Status {
   Success = 0,
 
@@ -63,16 +57,41 @@ enum class Status {
 };
 
 namespace detail {
+
+template <typename LogData, size_t MaxMessageLength> struct BasicLogData {
+  LogData mLogData{};
+  size_t mSequenceNumber{};
+  std::array<char, MaxMessageLength> mMessage{};
+};
+
 template <typename T, typename = void>
-struct has_try_enqueue : std::false_type {};
+struct has_try_enqueue_by_move : std::false_type {};
 
 template <typename T>
-struct has_try_enqueue<T, std::void_t<decltype(std::declval<T>().try_enqueue(
-                              std::declval<typename T::value_type>()))>>
-    : std::true_type {};
+struct has_try_enqueue_by_move<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type &&>()))>> : std::true_type {};
 
 template <typename T>
-inline constexpr bool has_try_enqueue_v = has_try_enqueue<T>::value;
+inline constexpr bool has_try_enqueue_by_move_v =
+    has_try_enqueue_by_move<T>::value;
+
+template <typename T, typename = void>
+struct has_try_enqueue_by_value : std::false_type {};
+
+template <typename T>
+struct has_try_enqueue_by_value<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type const &>()))>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_try_enqueue_by_value_v =
+    has_try_enqueue_by_value<T>::value;
+
+template <typename T>
+inline constexpr bool has_try_enqueue_v =
+    has_try_enqueue_by_move_v<T> || has_try_enqueue_by_value_v<T>;
 
 template <typename T, typename = void>
 struct has_try_dequeue : std::false_type {};
@@ -84,6 +103,26 @@ struct has_try_dequeue<T, std::void_t<decltype(std::declval<T>().try_dequeue(
 
 template <typename T>
 inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
+
+template <typename T, typename = void>
+struct has_value_type : std::false_type {};
+
+template <typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_value_type_v = has_value_type<T>::value;
+
+template <typename T, typename = void>
+struct has_int_constructor : std::false_type {};
+
+template <typename T>
+struct has_int_constructor<T, std::void_t<decltype(T(std::declval<int>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_int_constructor_v = has_int_constructor<T>::value;
 } // namespace detail
 
 // On earlier versions of compilers (especially clang) you cannot
@@ -115,20 +154,28 @@ template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
  * Requirements on QType:
  *     1. Is real-time safe
  *     2. Accepts one type template paramter for the type to be queued
- *     3. Has methods `try_enqueue` and `try_dequeue`
+ *     3. Has a constructor that takes an integer which will be the queue's capacity
+ *     4. Has methods `bool try_enqueue(T &&item)` and/or `bool try_enqueue(const T &item)` and `bool try_dequeue(T &item)`
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
           std::atomic<std::size_t> &SequenceNumber,
           template <typename> class QType = rtlog_SPSC>
 class Logger {
 public:
-  using InternalLogData = BasicLogData<LogData, MaxMessageLength>;
+  using InternalLogData = detail::BasicLogData<LogData, MaxMessageLength>;
   using InternalQType = QType<InternalLogData>;
 
+  static_assert(
+      detail::has_int_constructor_v<InternalQType>,
+      "QType must have a constructor that takes an int - `QType(int)`");
+  static_assert(detail::has_value_type_v<InternalQType>,
+                "QType must have a value_type - `using value_type = T;`");
   static_assert(detail::has_try_enqueue_v<InternalQType>,
-                "QType must have a try_enqueue method");
-  static_assert(detail::has_try_dequeue_v<InternalQType>,
-                "QType must have a try_dequeue method");
+                "QType must have a try_enqueue method - `bool try_enqueue(T "
+                "&&item)` and/or `bool try_enqueue(const T &item)`");
+  static_assert(
+      detail::has_try_dequeue_v<InternalQType>,
+      "QType must have a try_dequeue method - `bool try_dequeue(T &item)`");
 
   /*
    * @brief Logs a message with the given format and input data.
