@@ -114,7 +114,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
@@ -210,7 +210,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
