@@ -12,8 +12,8 @@ include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-fsanitize=realtime" COMPILER_SUPPORTS_RTSAN)
 unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
 if(COMPILER_SUPPORTS_RTSAN)
-  message(STATUS "Compiler supports -fsanitize=realtime, enabling RTLOG_USE_RTSAN option.")
-  option(RTLOG_USE_RTSAN "Use -fsanitize=realtime" ON)
+  message(STATUS "Compiler supports -fsanitize=realtime, allowing RTLOG_USE_RTSAN option.")
+  option(RTLOG_USE_RTSAN "Use -fsanitize=realtime" OFF)
 endif()
 
 # Add library header files
