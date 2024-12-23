@@ -58,15 +58,33 @@ enum class Status {
 
 namespace detail {
 template <typename T, typename = void>
-struct has_try_enqueue : std::false_type {};
+struct has_try_enqueue_by_move : std::false_type {};
 
 template <typename T>
-struct has_try_enqueue<T, std::void_t<decltype(std::declval<T>().try_enqueue(
-                              std::declval<typename T::value_type>()))>>
-    : std::true_type {};
+struct has_try_enqueue_by_move<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type &&>()))>> : std::true_type {};
 
 template <typename T>
-inline constexpr bool has_try_enqueue_v = has_try_enqueue<T>::value;
+inline constexpr bool has_try_enqueue_by_move_v =
+    has_try_enqueue_by_move<T>::value;
+
+template <typename T, typename = void>
+struct has_try_enqueue_by_value : std::false_type {};
+
+template <typename T>
+struct has_try_enqueue_by_value<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type const &>()))>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_try_enqueue_by_value_v =
+    has_try_enqueue_by_value<T>::value;
+
+template <typename T>
+inline constexpr bool has_try_enqueue_v =
+    has_try_enqueue_by_move_v<T> || has_try_enqueue_by_value_v<T>;
 
 template <typename T, typename = void>
 struct has_try_dequeue : std::false_type {};
@@ -78,27 +96,44 @@ struct has_try_dequeue<T, std::void_t<decltype(std::declval<T>().try_dequeue(
 
 template <typename T>
 inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
+
+template <typename T, typename = void>
+struct has_value_type : std::false_type {};
+
+template <typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_value_type_v = has_value_type<T>::value;
+
+template <typename T, typename = void>
+struct has_int_constructor : std::false_type {};
+
+template <typename T>
+struct has_int_constructor<T, std::void_t<decltype(T(std::declval<int>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_int_constructor_v = has_int_constructor<T>::value;
 } // namespace detail
 
-template<typename T, size_t MaxNumItem>
-class FarbotMPSCQueueWrapper {
+template <typename T, size_t MaxNumItem> class FarbotMPSCQueueWrapper {
   farbot::fifo<T, farbot::fifo_options::concurrency::single,
                farbot::fifo_options::concurrency::multiple,
                farbot::fifo_options::full_empty_failure_mode::
                    return_false_on_full_or_empty,
                farbot::fifo_options::full_empty_failure_mode::
                    overwrite_or_return_default>
-      mQueue{MaxNumItem};
+      mQueue;
+
 public:
-  bool try_enqueue(T const & item) {
-    return mQueue.push(std::move(item));
-  }
-  bool try_enqueue(T && item) {
-    return mQueue.push(std::move(item));
-  }
-  bool try_dequeue(T &item) {
-    return mQueue.pop(item);
-  }
+  using value_type = T;
+
+  FarbotMPSCQueueWrapper(int capacity) : mQueue(capacity) {}
+
+  bool try_enqueue(T &&item) { return mQueue.push(std::move(item)); }
+  bool try_dequeue(T &item) { return mQueue.pop(item); }
 };
 
 // On earlier versions of compilers (especially clang) you cannot
@@ -141,10 +176,17 @@ public:
   using InternalLogData = BasicLogData<LogData, MaxMessageLength>;
   using InternalQType = QType<InternalLogData>;
 
+  static_assert(
+      detail::has_int_constructor_v<InternalQType>,
+      "QType must have a constructor that takes an int - `QType(int)`");
+  static_assert(detail::has_value_type_v<InternalQType>,
+                "QType must have a value_type - `using value_type = T;`");
   static_assert(detail::has_try_enqueue_v<InternalQType>,
-                "QType must have a try_enqueue method");
-  static_assert(detail::has_try_dequeue_v<InternalQType>,
-                "QType must have a try_dequeue method");
+                "QType must have a try_enqueue method - `bool try_enqueue(T "
+                "&&item)` and/or `bool try_enqueue(const T &item)`");
+  static_assert(
+      detail::has_try_dequeue_v<InternalQType>,
+      "QType must have a try_dequeue method - `bool try_dequeue(T &item)`");
 
   /*
    * @brief Logs a message with the given format and input data.
@@ -190,7 +232,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
@@ -286,7 +328,7 @@ public:
 
     // Even if the message was truncated, we still try to enqueue it to minimize
     // data loss
-    const bool dataWasEnqueued = mQueue.try_enqueue(dataToQueue);
+    const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
     if (!dataWasEnqueued)
       retVal = Status::Error_QueueFull;
