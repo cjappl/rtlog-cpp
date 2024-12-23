@@ -48,9 +48,8 @@ struct ExampleLogData {
   ExampleLogRegion region;
 };
 
-static auto PrintMessage =
-    [](const ExampleLogData &data, size_t sequenceNumber, const char *fstring,
-       ...) __attribute__((format(printf, 4, 5))) {
+static auto PrintMessage = [](const ExampleLogData &data, size_t sequenceNumber,
+                              const char *fstring, ...) {
   std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
   // print fstring and the varargs into a std::string
   va_list args;
@@ -58,7 +57,7 @@ static auto PrintMessage =
   vsnprintf(buffer.data(), buffer.size(), fstring, args);
   va_end(args);
 
-  printf("{%lu} [%s] (%s): %s\n", sequenceNumber,
+  printf("{%zu} [%s] (%s): %s\n", sequenceNumber,
          rtlog::test::to_string(data.level),
          rtlog::test::to_string(data.region), buffer.data());
 };
@@ -176,8 +175,9 @@ TEST(RtlogTest, ErrorsReturnedFromLog) {
       rtlog::Status::Error_MessageTruncated);
 
   // Inspect truncated message
-  auto InspectLogMessage = [](const ExampleLogData &data, size_t sequenceNumber,
-                              const char *fstring, ...) {
+  auto InspectLogMessage = [=](const ExampleLogData &data,
+                               size_t sequenceNumber, const char *fstring,
+                               ...) {
     (void)sequenceNumber;
     EXPECT_EQ(data.level, ExampleLogLevel::Debug);
     EXPECT_EQ(data.region, ExampleLogRegion::Engine);
@@ -236,8 +236,9 @@ TEST(LoggerTest, LogFmtHandlesLongMessageTruncation) {
                           FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
             rtlog::Status::Error_MessageTruncated);
 
-  auto InspectLogMessage = [](const ExampleLogData &data, size_t sequenceNumber,
-                              const char *fstring, ...) {
+  auto InspectLogMessage = [=](const ExampleLogData &data,
+                               size_t sequenceNumber, const char *fstring,
+                               ...) {
     (void)sequenceNumber;
 
     EXPECT_EQ(data.level, ExampleLogLevel::Debug);

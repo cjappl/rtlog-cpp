@@ -32,7 +32,7 @@
 #define RTLOG_NONBLOCKING
 #endif
 
-#ifndef __MSC_VER__
+#if defined(__GNUC__) || defined(__clang__)
 #define RTLOG_ATTRIBUTE_FORMAT __attribute__((format(printf, 3, 4)))
 #else
 #define RTLOG_ATTRIBUTE_FORMAT
@@ -106,7 +106,8 @@ public:
         SequenceNumber.fetch_add(1, std::memory_order_relaxed);
 
     const auto charsPrinted = stbsp_vsnprintf(
-        dataToQueue.mMessage.data(), dataToQueue.mMessage.size(), format, args);
+        dataToQueue.mMessage.data(),
+        static_cast<int>(dataToQueue.mMessage.size()), format, args);
 
     if (charsPrinted < 0 ||
         static_cast<size_t>(charsPrinted) >= dataToQueue.mMessage.size())

@@ -64,8 +64,7 @@ public:
   PrintMessageFunctor &operator=(PrintMessageFunctor &&) = delete;
 
   void operator()(const LogData &data, size_t sequenceNumber,
-                  const char *fstring, ...)
-      __attribute__((format(printf, 4, 5))) {
+                  const char *fstring, ...) {
     std::array<char, MAX_LOG_MESSAGE_LENGTH> buffer;
 
     va_list args;
@@ -73,7 +72,7 @@ public:
     vsnprintf(buffer.data(), buffer.size(), fstring, args);
     va_end(args);
 
-    printf("{%lu} [%s] (%s): %s\n", sequenceNumber, to_string(data.level),
+    printf("{%zu} [%s] (%s): %s\n", sequenceNumber, to_string(data.level),
            to_string(data.region), buffer.data());
 
     mFile << "{" << sequenceNumber << "} [" << to_string(data.level) << "] ("
