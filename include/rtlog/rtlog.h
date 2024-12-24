@@ -6,12 +6,18 @@
 #include <cstdio>
 #include <thread>
 
+#if !defined(RTLOG_USE_FMTLIB) && !defined(RTLOG_USE_STB)
+// The default behavior to match legacy behavior is to use STB
+#define RTLOG_USE_STB
+#endif
+
 #ifdef RTLOG_USE_FMTLIB
 #include <fmt/format.h>
 #endif // RTLOG_USE_FMTLIB
 
 #include <readerwriterqueue.h>
 
+#ifdef RTLOG_USE_STB
 #ifndef STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_IMPLEMENTATION
 #endif
@@ -21,6 +27,7 @@
 #endif
 
 #include <stb_sprintf.h>
+#endif // RTLOG_USE_STB
 
 #if defined(__has_feature)
 #if __has_feature(realtime_sanitizer)
@@ -96,6 +103,7 @@ public:
    * message was truncated, the function returns
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
+#ifdef RTLOG_USE_STB
   Status Logv(LogData &&inputData, const char *format,
               va_list args) noexcept RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
@@ -156,6 +164,7 @@ public:
     va_end(args);
     return retVal;
   }
+#endif // RTLOG_USE_STB
 
 #ifdef RTLOG_USE_FMTLIB
 
@@ -187,8 +196,8 @@ public:
    * `Status::Error_MessageTruncated`. Otherwise, it returns `Status::Success`.
    */
   template <typename... T>
-  Status LogFmt(LogData &&inputData, fmt::format_string<T...> fmtString,
-                T &&...args) noexcept RTLOG_NONBLOCKING {
+  Status Log(LogData &&inputData, fmt::format_string<T...> fmtString,
+             T &&...args) noexcept RTLOG_NONBLOCKING {
     auto retVal = Status::Success;
 
     InternalLogData dataToQueue;

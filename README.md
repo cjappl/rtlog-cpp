@@ -80,7 +80,9 @@ RealtimeLogger logger;
 void SomeRealtimeCallback()
 {
     logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Audio}, "Hello, world! %i", 42);
-    logger.LogFmt({ExampleLogData::Debug, ExampleLogRegion::Audio, FMT_STRING("Hello, world! {}", 42);
+
+    // using RTSAN_USE_LIBFMT
+    logger.Log({ExampleLogData::Debug, ExampleLogRegion::Audio, FMT_STRING("Hello, world! {}", 42);
 }
 
 ...
