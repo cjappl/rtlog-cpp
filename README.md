@@ -4,13 +4,18 @@
 
 If you're looking for a general use logger, this probably isn't the library for you!
 
-The design behind this logger was presented at ADCx 2023. Presentation [video](https://www.youtube.com/watch?v=4KFFMGTQIFM) and [slides](https://github.com/cjappl/Conference-Presentations/tree/main/Taming-Real-Time-Logging-ADCx-2023).
+The design behind this logger was presented at ADCx 2023. 
+
+[![ADCx rtlog presentation on youtube](data/PresentationScreenshot.png)](https://www.youtube.com/watch?v=4KFFMGTQIFM)
+
+Slides:
+![Slide Title Page](data/SlideTitle.png)
 
 ## Features
 
 - Ability to log messages of any type and size from the real-time thread
 - Statically allocated memory at compile time, no allocations in the real-time thread
-- Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock)
+- Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock) OR support for modern libfmt formatting.
 - Efficient thread-safe logging using a [lock free queue](https://github.com/cameron314/readerwriterqueue).
 
 ## Requirements
@@ -18,7 +23,7 @@ The design behind this logger was presented at ADCx 2023. Presentation [video](h
 - A C++17 compatible compiler
 - The C++17 standard library
 - moodycamel::ReaderWriterQueue (will be downloaded via cmake if not provided)
-- stb's vsnprintf (will be downloaded via cmake if not provided)
+- stb's vsnprintf (will be downloaded via cmake if not provided) OR libfmt if cmake is run with the `RTSAN_USE_FMTLIB` option
 
 ## Installation via CMake
 
