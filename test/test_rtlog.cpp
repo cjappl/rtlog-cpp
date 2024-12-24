@@ -66,6 +66,8 @@ static auto PrintMessage = [](const ExampleLogData &data, size_t sequenceNumber,
 
 using namespace rtlog::test;
 
+#ifdef RTLOG_USE_STB
+
 TEST(RtlogTest, BasicConstruction) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
@@ -193,6 +195,7 @@ TEST(RtlogTest, ErrorsReturnedFromLog) {
   };
   EXPECT_EQ(truncatedLogger.PrintAndClearLogQueue(InspectLogMessage), 1);
 }
+#endif // RTLOG_USE_STB
 
 #ifdef RTLOG_USE_FMTLIB
 
@@ -201,39 +204,39 @@ TEST(LoggerTest, FormatLibVersionWorksAsIntended) {
                 gSequenceNumber>
       logger;
 
-  logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                FMT_STRING("Hello, {}!"), 123l);
-  logger.LogFmt({ExampleLogLevel::Info, ExampleLogRegion::Game},
-                FMT_STRING("Hello, {}!"), 123.0f);
-  logger.LogFmt({ExampleLogLevel::Warning, ExampleLogRegion::Network},
-                FMT_STRING("Hello, {}!"), 123.0);
-  logger.LogFmt({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                FMT_STRING("Hello, {}!"), (void *)123);
-  logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                FMT_STRING("Hello, {}!"), 123);
-  logger.LogFmt({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                FMT_STRING("Hello, {}!"), "world");
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             FMT_STRING("Hello, {}!"), 123l);
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
+             FMT_STRING("Hello, {}!"), 123.0f);
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             FMT_STRING("Hello, {}!"), 123.0);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             FMT_STRING("Hello, {}!"), (void *)123);
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             FMT_STRING("Hello, {}!"), 123);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             FMT_STRING("Hello, {}!"), "world");
 
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-TEST(LoggerTest, LogFmtReturnsSuccessOnNormalEnqueue) {
+TEST(LoggerTest, LogReturnsSuccessOnNormalEnqueue) {
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
       logger;
-  EXPECT_EQ(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                          FMT_STRING("Hello, {}!"), 123l),
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}!"), 123l),
             rtlog::Status::Success);
 }
 
-TEST(LoggerTest, LogFmtHandlesLongMessageTruncation) {
+TEST(LoggerTest, LogHandlesLongMessageTruncation) {
   const auto maxMessageLength = 10;
   rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
                 gSequenceNumber>
       logger;
 
-  EXPECT_EQ(logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                          FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
             rtlog::Status::Error_MessageTruncated);
 
   auto InspectLogMessage = [=](const ExampleLogData &data,
@@ -257,7 +260,7 @@ TEST(LoggerTest, LogFmtHandlesLongMessageTruncation) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 1);
 }
 
-TEST(LoggerTest, LogFmtHandlesQueueFullError) {
+TEST(LoggerTest, LogHandlesQueueFullError) {
   const auto maxNumMessages = 10;
   rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
                 gSequenceNumber>
@@ -266,8 +269,8 @@ TEST(LoggerTest, LogFmtHandlesQueueFullError) {
   auto status = rtlog::Status::Success;
 
   while (status == rtlog::Status::Success) {
-    status = logger.LogFmt({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                           FMT_STRING("Hello, {}!"), "world");
+    status = logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                        FMT_STRING("Hello, {}!"), "world");
   }
 
   EXPECT_EQ(status, rtlog::Status::Error_QueueFull);

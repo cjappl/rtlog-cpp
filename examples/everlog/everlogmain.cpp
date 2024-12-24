@@ -121,6 +121,7 @@ static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
   PrintMessage({LogLevel::Critical, Region}, ++gSequenceNumber, fstring,       \
                ##__VA_ARGS__)
 
+#ifdef RTLOG_USE_STB
 #define EVR_RTLOG_DEBUG(Region, fstring, ...)                                  \
   gRealtimeLogger.Log({LogLevel::Debug, Region}, fstring, ##__VA_ARGS__)
 #define EVR_RTLOG_INFO(Region, fstring, ...)                                   \
@@ -129,21 +130,27 @@ static rtlog::Logger<LogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
   gRealtimeLogger.Log({LogLevel::Warning, Region}, fstring, ##__VA_ARGS__)
 #define EVR_RTLOG_CRITICAL(Region, fstring, ...)                               \
   gRealtimeLogger.Log({LogLevel::Critical, Region}, fstring, ##__VA_ARGS__)
+#else
+#define EVR_RTLOG_DEBUG(Region, fstring, ...) (void)0
+#define EVR_RTLOG_INFO(Region, fstring, ...) (void)0
+#define EVR_RTLOG_WARNING(Region, fstring, ...) (void)0
+#define EVR_RTLOG_CRITICAL(Region, fstring, ...) (void)0
+#endif // RTLOG_USE_STB
 
 #ifdef RTLOG_USE_FMTLIB
 
 #define EVR_RTLOG_FMT_DEBUG(Region, fstring, ...)                              \
-  gRealtimeLogger.LogFmt({LogLevel::Debug, Region}, FMT_STRING(fstring),       \
-                         ##__VA_ARGS__)
+  gRealtimeLogger.Log({LogLevel::Debug, Region}, FMT_STRING(fstring),          \
+                      ##__VA_ARGS__)
 #define EVR_RTLOG_FMT_INFO(Region, fstring, ...)                               \
-  gRealtimeLogger.LogFmt({LogLevel::Info, Region}, FMT_STRING(fstring),        \
-                         ##__VA_ARGS__)
+  gRealtimeLogger.Log({LogLevel::Info, Region}, FMT_STRING(fstring),           \
+                      ##__VA_ARGS__)
 #define EVR_RTLOG_FMT_WARNING(Region, fstring, ...)                            \
-  gRealtimeLogger.LogFmt({LogLevel::Warning, Region}, FMT_STRING(fstring),     \
-                         ##__VA_ARGS__)
+  gRealtimeLogger.Log({LogLevel::Warning, Region}, FMT_STRING(fstring),        \
+                      ##__VA_ARGS__)
 #define EVR_RTLOG_FMT_CRITICAL(Region, fstring, ...)                           \
-  gRealtimeLogger.LogFmt({LogLevel::Critical, Region}, FMT_STRING(fstring),    \
-                         ##__VA_ARGS__)
+  gRealtimeLogger.Log({LogLevel::Critical, Region}, FMT_STRING(fstring),       \
+                      ##__VA_ARGS__)
 
 #else
 

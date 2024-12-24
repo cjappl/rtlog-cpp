@@ -53,7 +53,7 @@ if(NOT TARGET readerwriterqueue)
     FetchContent_MakeAvailable(ReaderWriterQueue)
 endif()
 
-if(NOT TARGET stb::stb)
+if(NOT RTSAN_USE_FMTLIB AND NOT TARGET stb::stb)
     # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
         cmake_policy(SET CMP0135 NEW)
@@ -98,6 +98,7 @@ target_compile_definitions(rtlog
     INTERFACE 
         STB_SPRINTF_IMPLEMENTATION 
         $<$<BOOL:${RTLOG_USE_FMTLIB}>:RTLOG_USE_FMTLIB>
+        $<$<NOT:$<BOOL:${RTLOG_USE_FMTLIB}>>:RTLOG_USE_STB>
         $<$<CONFIG:Debug>:DEBUG>
         $<$<CONFIG:Release>:NDEBUG>
 )
