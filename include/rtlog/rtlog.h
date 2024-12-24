@@ -5,6 +5,8 @@
 #include <cstdarg>
 #include <cstdio>
 #include <thread>
+#include <type_traits>
+#include <utility>
 
 #if !defined(RTLOG_USE_FMTLIB) && !defined(RTLOG_USE_STB)
 // The default behavior to match legacy behavior is to use STB
@@ -54,15 +56,88 @@ enum class Status {
   Error_MessageTruncated = 2,
 };
 
+namespace detail {
+
+template <typename LogData, size_t MaxMessageLength> struct BasicLogData {
+  LogData mLogData{};
+  size_t mSequenceNumber{};
+  std::array<char, MaxMessageLength> mMessage{};
+};
+
+template <typename T, typename = void>
+struct has_try_enqueue_by_move : std::false_type {};
+
+template <typename T>
+struct has_try_enqueue_by_move<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type &&>()))>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_try_enqueue_by_move_v =
+    has_try_enqueue_by_move<T>::value;
+
+template <typename T, typename = void>
+struct has_try_enqueue_by_value : std::false_type {};
+
+template <typename T>
+struct has_try_enqueue_by_value<
+    T, std::void_t<decltype(std::declval<T>().try_enqueue(
+           std::declval<typename T::value_type const &>()))>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_try_enqueue_by_value_v =
+    has_try_enqueue_by_value<T>::value;
+
+template <typename T>
+inline constexpr bool has_try_enqueue_v =
+    has_try_enqueue_by_move_v<T> || has_try_enqueue_by_value_v<T>;
+
+template <typename T, typename = void>
+struct has_try_dequeue : std::false_type {};
+
+template <typename T>
+struct has_try_dequeue<T, std::void_t<decltype(std::declval<T>().try_dequeue(
+                              std::declval<typename T::value_type &>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_try_dequeue_v = has_try_dequeue<T>::value;
+
+template <typename T, typename = void>
+struct has_value_type : std::false_type {};
+
+template <typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_value_type_v = has_value_type<T>::value;
+
+template <typename T, typename = void>
+struct has_int_constructor : std::false_type {};
+
+template <typename T>
+struct has_int_constructor<T, std::void_t<decltype(T(std::declval<int>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_int_constructor_v = has_int_constructor<T>::value;
+} // namespace detail
+
+// On earlier versions of compilers (especially clang) you cannot
+// rely on defaulted template template parameters working as intended
+// This overload explicitly has 1 template paramter which is what
+// `Logger` expects, it uses the default 512 from ReaderWriterQueue as
+// the hardcoded MaxBlockSize
+template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
+
 /**
  * @brief A logger class for logging messages.
  * This class allows you to log messages of type LogData.
  * This type is user defined, and is often the additional data outside the
  * format string you want to log. For instance: The log level, the log region,
  * the file name, the line number, etc. See examples or tests for some ideas.
- *
- * TODO: Currently is built on a single input/single output queue. Do not call
- * Log or PrintAndClearLogQueue from multiple threads.
  *
  * @tparam LogData The type of the data to be logged.
  * @tparam MaxNumMessages The maximum number of messages that can be enqueud at
@@ -72,11 +147,38 @@ enum class Status {
  * @tparam SequenceNumber This number is incremented when the message is
  * enqueued. It is assumed that your non-realtime logger increments and logs it
  * on Log.
+ * @tparam QType is the configurable underlying queue. By default it is a SPSC
+ * queue from moodycamel. WARNING! It is up to the user to ensure this queue
+ * type is real-time safe!!
+ *
+ * Requirements on QType:
+ *     1. Is real-time safe
+ *     2. Accepts one type template paramter for the type to be queued
+ *     3. Has a constructor that takes an integer which will be the queue's
+ * capacity
+ *     4. Has methods `bool try_enqueue(T &&item)` and/or `bool
+ * try_enqueue(const T &item)` and `bool try_dequeue(T &item)`
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
-          std::atomic<std::size_t> &SequenceNumber>
+          std::atomic<std::size_t> &SequenceNumber,
+          template <typename> class QType = rtlog_SPSC>
 class Logger {
 public:
+  using InternalLogData = detail::BasicLogData<LogData, MaxMessageLength>;
+  using InternalQType = QType<InternalLogData>;
+
+  static_assert(
+      detail::has_int_constructor_v<InternalQType>,
+      "QType must have a constructor that takes an int - `QType(int)`");
+  static_assert(detail::has_value_type_v<InternalQType>,
+                "QType must have a value_type - `using value_type = T;`");
+  static_assert(detail::has_try_enqueue_v<InternalQType>,
+                "QType must have a try_enqueue method - `bool try_enqueue(T "
+                "&&item)` and/or `bool try_enqueue(const T &item)`");
+  static_assert(
+      detail::has_try_dequeue_v<InternalQType>,
+      "QType must have a try_dequeue method - `bool try_dequeue(T &item)`");
+
   /*
    * @brief Logs a message with the given format and input data.
    *
@@ -261,13 +363,7 @@ public:
   }
 
 private:
-  struct InternalLogData {
-    LogData mLogData{};
-    size_t mSequenceNumber{};
-    std::array<char, MaxMessageLength> mMessage{};
-  };
-
-  moodycamel::ReaderWriterQueue<InternalLogData> mQueue{MaxNumMessages};
+  InternalQType mQueue{MaxNumMessages};
 };
 
 /**
