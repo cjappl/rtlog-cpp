@@ -1,24 +1,20 @@
-#include <farbot/fifo.hpp>
 #include <rtlog/rtlog.h>
 
-template <typename T> class FarbotMPSCQueueWrapper {
-  farbot::fifo<T,
-               farbot::fifo_options::concurrency::single,   // Consumer
-               farbot::fifo_options::concurrency::multiple, // Producer
-               farbot::fifo_options::full_empty_failure_mode::
-                   return_false_on_full_or_empty, // consumer_failure_mode
-               farbot::fifo_options::full_empty_failure_mode::
-                   overwrite_or_return_default> // producer_failure_mode
+#include <readerwriterqueue.h>
 
-      mQueue;
+template <typename T> class CustomQueue {
+
+  // technically we could use readerwriterqueue "unwrapped" but showing this off
+  // in the CustomQueue wrapper for documentation purposes
+  moodycamel::ReaderWriterQueue<T> mQueue;
 
 public:
   using value_type = T;
 
-  FarbotMPSCQueueWrapper(int capacity) : mQueue(capacity) {}
+  CustomQueue(int capacity) : mQueue(capacity) {}
 
-  bool try_enqueue(T &&item) { return mQueue.push(std::move(item)); }
-  bool try_dequeue(T &item) { return mQueue.pop(item); }
+  bool try_enqueue(T &&item) { return mQueue.try_enqueue(std::move(item)); }
+  bool try_dequeue(T &item) { return mQueue.try_dequeue(item); }
 };
 
 struct LogData {};
@@ -26,8 +22,7 @@ struct LogData {};
 std::atomic<size_t> gSequenceNumber{0};
 
 int main() {
-  rtlog::Logger<LogData, 128, 128, gSequenceNumber, FarbotMPSCQueueWrapper>
-      logger;
+  rtlog::Logger<LogData, 128, 128, gSequenceNumber, CustomQueue> logger;
   logger.Log({}, "Hello, World!");
 
   logger.PrintAndClearLogQueue(

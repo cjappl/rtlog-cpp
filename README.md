@@ -16,13 +16,13 @@ Slides:
 - Ability to log messages of any type and size from the real-time thread
 - Statically allocated memory at compile time, no allocations in the real-time thread
 - Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock) OR support for modern libfmt formatting.
-- Efficient thread-safe logging using a [lock free queue](https://github.com/cameron314/readerwriterqueue).
+- Efficient thread-safe logging using a [lock free queue](https://github.com/hogliux/farbot)
 
 ## Requirements
 
 - A C++17 compatible compiler
 - The C++17 standard library
-- moodycamel::ReaderWriterQueue (will be downloaded via cmake if not provided)
+- farbot::fifo (will be downloaded via cmake if not provided)
 - stb's vsnprintf (will be downloaded via cmake if not provided) OR libfmt if cmake is run with the `RTSAN_USE_FMTLIB` option
 
 ## Installation via CMake
@@ -102,7 +102,7 @@ static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber,
     vsnprintf(buffer.data(), buffer.size(), fstring, args);
     va_end(args);
 
-    printf("{%lu} [%s] (%s): %s\n", 
+    printf("{%lu} [%s] (%s): %s\n",
         sequenceNumber, 
         rtlog::test::to_string(data.level), 
         rtlog::test::to_string(data.region), 
@@ -130,7 +130,23 @@ Or alternatively spin up a `rtlog::LogProcessingThread`
 
 ## Customizing the queue type
 
-If you don't want to use the SPSC moodycamel queue, you can provide your own queue type. 
+rtlog provides two queue type variants: `rtlog::SingleRealtimeWriterQueueType` (SPSC - default) and `rtlog::MultiRealtimeWriterQueueType` (MPSC). It is always assummed that you have one log printing thread. These may be used by specifying them:
+
+```cpp
+using SingleWriterRtLoggerType = rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber, SingleRealtimeWriterQueueType>;
+
+SingleWriterRtLoggerType logger;
+logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Audio}, "Hello, world! %i", 42);
+
+...
+
+using MultiWriterRtLoggerType = rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH, gSequenceNumber, MultiRealtimeWriterQueueType>;
+
+MultiWriterRtLoggerType logger;
+logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Audio}, "Hello, world! %i", 42);
+```
+
+If you don't want to use either of these defaults, you may provide your own queue.
 
 ** IT IS UP TO YOU TO ENSURE THE QUEUE YOU PROVIDE IS LOCK-FREE AND REAL-TIME SAFE **
 
