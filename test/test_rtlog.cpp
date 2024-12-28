@@ -104,33 +104,34 @@ TYPED_TEST_SUITE(TruncatedRtLogTest, TruncatedLoggerTypes);
 #ifdef RTLOG_USE_STB
 
 TYPED_TEST(RtLogTest, BasicConstruction) {
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   "Hello, world!");
-  this->logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
-                   "Hello, world!");
-  this->logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
-                   "Hello, world!");
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   "Hello, world!");
+  auto &logger = this->logger;
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             "Hello, world!");
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             "Hello, world!");
 
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(PrintMessage), 4);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
 }
 
 TYPED_TEST(RtLogTest, VaArgsWorksAsIntended) {
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   "Hello, %lu!", 123ul);
-  this->logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
-                   "Hello, %f!", 123.0);
-  this->logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
-                   "Hello, %lf!", 123.0);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   "Hello, %p!", (void *)123);
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   "Hello, %d!", 123);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   "Hello, %s!", "world");
+  auto &logger = this->logger;
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
+             123ul);
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
+             123.0);
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             "Hello, %lf!", 123.0);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
+             (void *)123);
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!",
+             123);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!",
+             "world");
 
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(PrintMessage), 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
 template <typename LoggerType>
@@ -143,49 +144,51 @@ void vaArgsTest(LoggerType &&logger, ExampleLogData &&data, const char *format,
 }
 
 TYPED_TEST(RtLogTest, LogvVersionWorks) {
-  vaArgsTest(this->logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+  auto &logger = this->logger;
+  vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, %lu!", 123ul);
-  vaArgsTest(this->logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
+  vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
              "Hello, %f!", 123.0);
-  vaArgsTest(this->logger,
-             {ExampleLogLevel::Warning, ExampleLogRegion::Network},
+  vaArgsTest(logger, {ExampleLogLevel::Warning, ExampleLogRegion::Network},
              "Hello, %lf!", 123.0);
-  vaArgsTest(this->logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+  vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
              "Hello, %p!", (void *)123);
-  vaArgsTest(this->logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+  vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, %d!", 123);
-  vaArgsTest(this->logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+  vaArgsTest(logger, {ExampleLogLevel::Critical, ExampleLogRegion::Audio},
              "Hello, %s!", "world");
 
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(PrintMessage), 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
 TYPED_TEST(RtLogTest, LoggerThreadDoesItsJob) {
-  rtlog::LogProcessingThread thread(this->logger, PrintMessage,
+  auto &logger = this->logger;
+  rtlog::LogProcessingThread thread(logger, PrintMessage,
                                     std::chrono::milliseconds(10));
 
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   "Hello, %lu!", 123ul);
-  this->logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
-                   "Hello, %f!", 123.0);
-  this->logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
-                   "Hello, %lf!", 123.0);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   "Hello, %p!", (void *)123);
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   "Hello, %d!", 123);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   "Hello, %s!", "world");
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
+             123ul);
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
+             123.0);
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             "Hello, %lf!", 123.0);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %p!",
+             (void *)123);
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %d!",
+             123);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio}, "Hello, %s!",
+             "world");
 
   thread.Stop();
 }
 
 TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
-  EXPECT_EQ(this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             "Hello, %lu", 12ul),
+  auto &logger = this->logger;
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       "Hello, %lu", 12ul),
             rtlog::Status::Success);
-  EXPECT_EQ(this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             "Hello, %luxxxxxxxxxxxxxx", 123ul),
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       "Hello, %luxxxxxxxxxxxxxx", 123ul),
             rtlog::Status::Error_MessageTruncated);
 
   // Inspect truncated message
@@ -203,43 +206,46 @@ TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
   };
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(InspectLogMessage), 2);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
 #endif // RTLOG_USE_STB
 
 #ifdef RTLOG_USE_FMTLIB
 
 TYPED_TEST(RtLogTest, FormatLibVersionWorksAsIntended) {
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   FMT_STRING("Hello, {}!"), 123l);
-  this->logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
-                   FMT_STRING("Hello, {}!"), 123.0f);
-  this->logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
-                   FMT_STRING("Hello, {}!"), 123.0);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   FMT_STRING("Hello, {}!"), (void *)123);
-  this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                   FMT_STRING("Hello, {}!"), 123);
-  this->logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
-                   FMT_STRING("Hello, {}!"), "world");
+  auto &logger = this->logger;
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             FMT_STRING("Hello, {}!"), 123l);
+  logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
+             FMT_STRING("Hello, {}!"), 123.0f);
+  logger.Log({ExampleLogLevel::Warning, ExampleLogRegion::Network},
+             FMT_STRING("Hello, {}!"), 123.0);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             FMT_STRING("Hello, {}!"), (void *)123);
+  logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+             FMT_STRING("Hello, {}!"), 123);
+  logger.Log({ExampleLogLevel::Critical, ExampleLogRegion::Audio},
+             FMT_STRING("Hello, {}!"), "world");
 
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(PrintMessage), 6);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
 TYPED_TEST(RtLogTest, LogReturnsSuccessOnNormalEnqueue) {
-  EXPECT_EQ(this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             FMT_STRING("Hello, {}!"), 123l),
+  auto &logger = this->logger;
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}!"), 123l),
             rtlog::Status::Success);
 }
 
 TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
-  EXPECT_EQ(this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             FMT_STRING("Hello, {}"), 12ul),
+  auto &logger = this->logger;
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}"), 12ul),
             rtlog::Status::Success);
-  EXPECT_EQ(this->logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                             FMT_STRING("Hello, {}xxxxxxxxxxx"), 123ul),
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}xxxxxxxxxxx"), 123ul),
             rtlog::Status::Error_MessageTruncated);
 
   auto InspectLogMessage = [=](const ExampleLogData &data,
@@ -257,10 +263,10 @@ TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
   };
 
-  EXPECT_EQ(this->logger.PrintAndClearLogQueue(InspectLogMessage), 2);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
 
 TEST(LoggerTest, SingleWriterLogHandlesQueueFullError) {
