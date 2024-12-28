@@ -16,7 +16,7 @@ Slides:
 - Ability to log messages of any type and size from the real-time thread
 - Statically allocated memory at compile time, no allocations in the real-time thread
 - Support for printf-style format specifiers (using [a version of the printf family](https://github.com/nothings/stb/blob/master/stb_sprintf.h) that doesn't hit the `localeconv` lock) OR support for modern libfmt formatting.
-- Efficient thread-safe logging using a [lock free queue](https://github.com/hogliux/farbot)
+- Efficient thread-safe logging using a [lock free queue](https://github.com/hogliux/farbot).
 
 ## Requirements
 
@@ -102,7 +102,7 @@ static auto PrintMessage = [](const ExampleLogData& data, size_t sequenceNumber,
     vsnprintf(buffer.data(), buffer.size(), fstring, args);
     va_end(args);
 
-    printf("{%lu} [%s] (%s): %s\n",
+    printf("{%lu} [%s] (%s): %s\n", 
         sequenceNumber, 
         rtlog::test::to_string(data.level), 
         rtlog::test::to_string(data.region), 

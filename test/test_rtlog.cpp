@@ -206,7 +206,7 @@ TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
   };
   EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
@@ -263,7 +263,7 @@ TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
   };
 
   EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);

@@ -195,6 +195,7 @@ public:
   using InternalLogData = detail::BasicLogData<LogData, MaxMessageLength>;
   using InternalQType = QType<InternalLogData>;
 
+  static_assert(MaxNumMessages > 0);
   static_assert((MaxNumMessages & (MaxNumMessages - 1)) == 0,
                 "MaxNumMessages must be a power of 2");
   static_assert(
@@ -257,13 +258,8 @@ public:
     // data loss
     const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
-    constexpr bool isMultiRealtimeWriterQueueType =
-        std::is_same_v<InternalQType,
-                       MultiRealtimeWriterQueueType<InternalLogData>>;
-    if constexpr (!isMultiRealtimeWriterQueueType) {
-      if (!dataWasEnqueued)
-        retVal = Status::Error_QueueFull;
-    }
+    if (!dataWasEnqueued)
+      retVal = Status::Error_QueueFull;
 
     return retVal;
   }
@@ -359,13 +355,8 @@ public:
     // data loss
     const bool dataWasEnqueued = mQueue.try_enqueue(std::move(dataToQueue));
 
-    constexpr bool isMultiRealtimeWriterQueueType =
-        std::is_same_v<InternalQType,
-                       MultiRealtimeWriterQueueType<InternalLogData>>;
-    if constexpr (!isMultiRealtimeWriterQueueType) {
-      if (!dataWasEnqueued)
-        retVal = Status::Error_QueueFull;
-    }
+    if (!dataWasEnqueued)
+      retVal = Status::Error_QueueFull;
 
     return retVal;
   };
