@@ -7,7 +7,7 @@ namespace rtlog::test {
 static std::atomic<std::size_t> gSequenceNumber{0};
 
 constexpr auto MAX_LOG_MESSAGE_LENGTH = 256;
-constexpr auto MAX_NUM_LOG_MESSAGES = 100;
+constexpr auto MAX_NUM_LOG_MESSAGES = 128;
 
 enum class ExampleLogLevel { Debug, Info, Warning, Critical };
 
@@ -66,12 +66,45 @@ static auto PrintMessage = [](const ExampleLogData &data, size_t sequenceNumber,
 
 using namespace rtlog::test;
 
+using SingleWriterRtLoggerType =
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                  gSequenceNumber, rtlog::SingleRealtimeWriterQueueType>;
+using MultiWriterRtLoggerType =
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
+                  gSequenceNumber, rtlog::MultiRealtimeWriterQueueType>;
+
+template <typename LoggerType> class RtLogTest : public ::testing::Test {
+protected:
+  LoggerType logger;
+};
+
+typedef ::testing::Types<SingleWriterRtLoggerType, MultiWriterRtLoggerType>
+    LoggerTypes;
+TYPED_TEST_SUITE(RtLogTest, LoggerTypes);
+
+using TruncatedSingleWriterRtLoggerType =
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, 10, gSequenceNumber,
+                  rtlog::SingleRealtimeWriterQueueType>;
+using TruncatedMultiWriterRtLoggerType =
+    rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, 10, gSequenceNumber,
+                  rtlog::MultiRealtimeWriterQueueType>;
+
+template <typename LoggerType>
+class TruncatedRtLogTest : public ::testing::Test {
+protected:
+  LoggerType logger;
+  inline static const size_t maxMessageLength = 10;
+};
+
+typedef ::testing::Types<TruncatedSingleWriterRtLoggerType,
+                         TruncatedMultiWriterRtLoggerType>
+    TruncatedLoggerTypes;
+TYPED_TEST_SUITE(TruncatedRtLogTest, TruncatedLoggerTypes);
+
 #ifdef RTLOG_USE_STB
 
-TEST(RtlogTest, BasicConstruction) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
+TYPED_TEST(RtLogTest, BasicConstruction) {
+  auto &logger = this->logger;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, world!");
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
@@ -83,11 +116,8 @@ TEST(RtlogTest, BasicConstruction) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 4);
 }
 
-TEST(RtlogTest, VaArgsWorksAsIntended) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(RtLogTest, VaArgsWorksAsIntended) {
+  auto &logger = this->logger;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
              123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
@@ -104,20 +134,17 @@ TEST(RtlogTest, VaArgsWorksAsIntended) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-void vaArgsTest(rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES,
-                              MAX_LOG_MESSAGE_LENGTH, gSequenceNumber> &logger,
-                ExampleLogData &&data, const char *format, ...) {
+template <typename LoggerType>
+void vaArgsTest(LoggerType &&logger, ExampleLogData &&data, const char *format,
+                ...) {
   va_list args;
   va_start(args, format);
   logger.Logv(std::move(data), format, args);
   va_end(args);
 }
 
-TEST(RtlogTest, LogvVersionWorks) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(RtLogTest, LogvVersionWorks) {
+  auto &logger = this->logger;
   vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, %lu!", 123ul);
   vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
@@ -134,11 +161,8 @@ TEST(RtlogTest, LogvVersionWorks) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-TEST(RtlogTest, LoggerThreadDoesItsJob) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(RtLogTest, LoggerThreadDoesItsJob) {
+  auto &logger = this->logger;
   rtlog::LogProcessingThread thread(logger, PrintMessage,
                                     std::chrono::milliseconds(10));
 
@@ -158,23 +182,14 @@ TEST(RtlogTest, LoggerThreadDoesItsJob) {
   thread.Stop();
 }
 
-TEST(RtlogTest, ErrorsReturnedFromLog) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
+  auto &logger = this->logger;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       "Hello, %lu!", 123ul),
+                       "Hello, %lu", 12ul),
             rtlog::Status::Success);
-
-  const auto maxMessageLength = 10;
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
-                gSequenceNumber>
-      truncatedLogger;
-  EXPECT_EQ(
-      truncatedLogger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                          "Hello, %lu! xxxxxxxxxxx", 123ul),
-      rtlog::Status::Error_MessageTruncated);
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       "Hello, %luxxxxxxxxxxxxxx", 123ul),
+            rtlog::Status::Error_MessageTruncated);
 
   // Inspect truncated message
   auto InspectLogMessage = [=](const ExampleLogData &data,
@@ -191,19 +206,16 @@ TEST(RtlogTest, ErrorsReturnedFromLog) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
   };
-  EXPECT_EQ(truncatedLogger.PrintAndClearLogQueue(InspectLogMessage), 1);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
 #endif // RTLOG_USE_STB
 
 #ifdef RTLOG_USE_FMTLIB
 
-TEST(LoggerTest, FormatLibVersionWorksAsIntended) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(RtLogTest, FormatLibVersionWorksAsIntended) {
+  auto &logger = this->logger;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              FMT_STRING("Hello, {}!"), 123l);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
@@ -220,23 +232,20 @@ TEST(LoggerTest, FormatLibVersionWorksAsIntended) {
   EXPECT_EQ(logger.PrintAndClearLogQueue(PrintMessage), 6);
 }
 
-TEST(LoggerTest, LogReturnsSuccessOnNormalEnqueue) {
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
-      logger;
+TYPED_TEST(RtLogTest, LogReturnsSuccessOnNormalEnqueue) {
+  auto &logger = this->logger;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
                        FMT_STRING("Hello, {}!"), 123l),
             rtlog::Status::Success);
 }
 
-TEST(LoggerTest, LogHandlesLongMessageTruncation) {
-  const auto maxMessageLength = 10;
-  rtlog::Logger<ExampleLogData, MAX_NUM_LOG_MESSAGES, maxMessageLength,
-                gSequenceNumber>
-      logger;
-
+TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
+  auto &logger = this->logger;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
+                       FMT_STRING("Hello, {}"), 12ul),
+            rtlog::Status::Success);
+  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                       FMT_STRING("Hello, {}xxxxxxxxxxx"), 123ul),
             rtlog::Status::Error_MessageTruncated);
 
   auto InspectLogMessage = [=](const ExampleLogData &data,
@@ -254,16 +263,16 @@ TEST(LoggerTest, LogHandlesLongMessageTruncation) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
   };
 
-  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 1);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
 
-TEST(LoggerTest, LogHandlesQueueFullError) {
-  const auto maxNumMessages = 10;
+TEST(LoggerTest, SingleWriterLogHandlesQueueFullError) {
+  const auto maxNumMessages = 16;
   rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
-                gSequenceNumber>
+                gSequenceNumber, rtlog::SingleRealtimeWriterQueueType>
       logger;
 
   auto status = rtlog::Status::Success;
@@ -274,6 +283,28 @@ TEST(LoggerTest, LogHandlesQueueFullError) {
   }
 
   EXPECT_EQ(status, rtlog::Status::Error_QueueFull);
+}
+
+TEST(LoggerTest, MultipleWriterLogHandlesNeverReturnsFull) {
+  const auto maxNumMessages = 16;
+  rtlog::Logger<ExampleLogData, maxNumMessages, MAX_LOG_MESSAGE_LENGTH,
+                gSequenceNumber, rtlog::MultiRealtimeWriterQueueType>
+      logger;
+
+  auto status = rtlog::Status::Success;
+
+  int messageCount = 0;
+
+  while (status == rtlog::Status::Success &&
+         messageCount < maxNumMessages + 10) {
+    status = logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
+                        FMT_STRING("Hello, {} {}!"), "world", messageCount);
+    messageCount++;
+  }
+
+  // We can never report full on a multi-writer queue, it is not realtime safe
+  // We will just happily spin forever in this loop unless we break
+  EXPECT_EQ(status, rtlog::Status::Success);
 }
 
 #endif // RTLOG_USE_FMTLIB

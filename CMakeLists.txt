@@ -43,14 +43,24 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   $<INSTALL_INTERFACE:include>
 )
 
-# Try to find the package ReaderWriterQueue, if not found fetch with FetchContent
-find_package(ReaderWriterQueue QUIET)
-if(NOT TARGET readerwriterqueue)
+if (NOT TARGET farbot)
     include(FetchContent)
-    FetchContent_Declare(ReaderWriterQueue
-        GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue
+
+    FetchContent_Declare(farbot
+        GIT_REPOSITORY https://github.com/hogliux/farbot
+        GIT_TAG 0416705394720c12f0d02e55c144e4f69bb06912
     )
-    FetchContent_MakeAvailable(ReaderWriterQueue)
+    # Note we do not "MakeAvailable" here, because farbot does not fully work via FetchContent
+    if(NOT farbot_POPULATED)
+        FetchContent_Populate(farbot)
+    endif()
+    add_library(farbot INTERFACE)
+    add_library(farbot::farbot ALIAS farbot)
+
+    target_include_directories(farbot INTERFACE
+            $<BUILD_INTERFACE:${farbot_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
 endif()
 
 if(NOT RTSAN_USE_FMTLIB AND NOT TARGET stb::stb)
@@ -89,7 +99,7 @@ endif()
 
 target_link_libraries(rtlog 
     INTERFACE 
-        readerwriterqueue
+        farbot::farbot
         stb::stb
         $<$<BOOL:${RTLOG_USE_FMTLIB}>:fmt::fmt>
 )
