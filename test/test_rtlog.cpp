@@ -75,7 +75,7 @@ using MultiWriterRtLoggerType =
 
 template <typename LoggerType> class RtLogTest : public ::testing::Test {
 protected:
-  LoggerType logger;
+  LoggerType logger_;
 };
 
 typedef ::testing::Types<SingleWriterRtLoggerType, MultiWriterRtLoggerType>
@@ -92,8 +92,8 @@ using TruncatedMultiWriterRtLoggerType =
 template <typename LoggerType>
 class TruncatedRtLogTest : public ::testing::Test {
 protected:
-  LoggerType logger;
-  inline static const size_t maxMessageLength = 10;
+  LoggerType logger_;
+  inline static const size_t maxMessageLength_ = 10;
 };
 
 typedef ::testing::Types<TruncatedSingleWriterRtLoggerType,
@@ -104,7 +104,7 @@ TYPED_TEST_SUITE(TruncatedRtLogTest, TruncatedLoggerTypes);
 #ifdef RTLOG_USE_STB
 
 TYPED_TEST(RtLogTest, BasicConstruction) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, world!");
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, world!");
@@ -117,7 +117,7 @@ TYPED_TEST(RtLogTest, BasicConstruction) {
 }
 
 TYPED_TEST(RtLogTest, VaArgsWorksAsIntended) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine}, "Hello, %lu!",
              123ul);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game}, "Hello, %f!",
@@ -144,7 +144,7 @@ void vaArgsTest(LoggerType &&logger, ExampleLogData &&data, const char *format,
 }
 
 TYPED_TEST(RtLogTest, LogvVersionWorks) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   vaArgsTest(logger, {ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              "Hello, %lu!", 123ul);
   vaArgsTest(logger, {ExampleLogLevel::Info, ExampleLogRegion::Game},
@@ -162,7 +162,7 @@ TYPED_TEST(RtLogTest, LogvVersionWorks) {
 }
 
 TYPED_TEST(RtLogTest, LoggerThreadDoesItsJob) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   rtlog::LogProcessingThread thread(logger, PrintMessage,
                                     std::chrono::milliseconds(10));
 
@@ -183,12 +183,14 @@ TYPED_TEST(RtLogTest, LoggerThreadDoesItsJob) {
 }
 
 TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
+  auto maxMessageLength = this->maxMessageLength_;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
                        "Hello, %lu", 12ul),
             rtlog::Status::Success);
+
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       "Hello, %luxxxxxxxxxxxxxx", 123ul),
+                       "Hello, %lu! xxxxxxxxxxx", 123ul),
             rtlog::Status::Error_MessageTruncated);
 
   // Inspect truncated message
@@ -206,7 +208,7 @@ TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
   };
   EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
 }
@@ -215,7 +217,7 @@ TYPED_TEST(TruncatedRtLogTest, ErrorsReturnedFromLog) {
 #ifdef RTLOG_USE_FMTLIB
 
 TYPED_TEST(RtLogTest, FormatLibVersionWorksAsIntended) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
              FMT_STRING("Hello, {}!"), 123l);
   logger.Log({ExampleLogLevel::Info, ExampleLogRegion::Game},
@@ -233,19 +235,17 @@ TYPED_TEST(RtLogTest, FormatLibVersionWorksAsIntended) {
 }
 
 TYPED_TEST(RtLogTest, LogReturnsSuccessOnNormalEnqueue) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
                        FMT_STRING("Hello, {}!"), 123l),
             rtlog::Status::Success);
 }
 
 TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
-  auto &logger = this->logger;
+  auto &logger = this->logger_;
+  auto maxMessageLength = this->maxMessageLength_;
   EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       FMT_STRING("Hello, {}"), 12ul),
-            rtlog::Status::Success);
-  EXPECT_EQ(logger.Log({ExampleLogLevel::Debug, ExampleLogRegion::Engine},
-                       FMT_STRING("Hello, {}xxxxxxxxxxx"), 123ul),
+                       FMT_STRING("Hello, {}! xxxxxxxxxxx"), 123l),
             rtlog::Status::Error_MessageTruncated);
 
   auto InspectLogMessage = [=](const ExampleLogData &data,
@@ -263,10 +263,10 @@ TYPED_TEST(TruncatedRtLogTest, LogHandlesLongMessageTruncation) {
     va_end(args);
 
     EXPECT_STREQ(buffer.data(), "Hello, 12");
-    EXPECT_EQ(strlen(buffer.data()), this->maxMessageLength - 1);
+    EXPECT_EQ(strlen(buffer.data()), maxMessageLength - 1);
   };
 
-  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 2);
+  EXPECT_EQ(logger.PrintAndClearLogQueue(InspectLogMessage), 1);
 }
 
 TEST(LoggerTest, SingleWriterLogHandlesQueueFullError) {
