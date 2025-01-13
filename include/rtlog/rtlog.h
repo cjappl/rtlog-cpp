@@ -17,7 +17,7 @@
 #include <fmt/format.h>
 #endif // RTLOG_USE_FMTLIB
 
-#include <readerwriterqueue.h>
+#include <farbot/fifo.hpp>
 
 #ifdef RTLOG_USE_STB
 #ifndef STB_SPRINTF_IMPLEMENTATION
@@ -125,12 +125,40 @@ template <typename T>
 inline constexpr bool has_int_constructor_v = has_int_constructor<T>::value;
 } // namespace detail
 
-// On earlier versions of compilers (especially clang) you cannot
-// rely on defaulted template template parameters working as intended
-// This overload explicitly has 1 template paramter which is what
-// `Logger` expects, it uses the default 512 from ReaderWriterQueue as
-// the hardcoded MaxBlockSize
-template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
+template <typename T, farbot::fifo_options::concurrency producer_concurrency,
+          farbot::fifo_options::full_empty_failure_mode producer_failure_mode>
+class FarbotFifoType {
+  farbot::fifo<T,
+               farbot::fifo_options::concurrency::single, // Consumer
+               producer_concurrency,                      // Producer
+               farbot::fifo_options::full_empty_failure_mode::
+                   return_false_on_full_or_empty, // consumer_failure_mode
+               producer_failure_mode>             // producer_failure_mode
+
+      mQueue;
+
+public:
+  using value_type = T;
+
+  FarbotFifoType(int capacity) : mQueue(capacity) {}
+
+  bool try_enqueue(T &&item) { return mQueue.push(std::move(item)); }
+  bool try_dequeue(T &item) { return mQueue.pop(item); }
+};
+
+template <typename T>
+using SingleRealtimeWriterQueueType =
+    FarbotFifoType<T, farbot::fifo_options::concurrency::single,
+                   farbot::fifo_options::full_empty_failure_mode::
+                       return_false_on_full_or_empty>;
+
+// NOTE: This version overwrites on full, which is a requirement to make writing
+// real-time safe.
+//       This means it will never report Error_QueueFull.
+template <typename T>
+using MultiRealtimeWriterQueueType = FarbotFifoType<
+    T, farbot::fifo_options::concurrency::multiple,
+    farbot::fifo_options::full_empty_failure_mode::overwrite_or_return_default>;
 
 /**
  * @brief A logger class for logging messages.
@@ -161,12 +189,15 @@ template <typename T> using rtlog_SPSC = moodycamel::ReaderWriterQueue<T, 512>;
  */
 template <typename LogData, size_t MaxNumMessages, size_t MaxMessageLength,
           std::atomic<std::size_t> &SequenceNumber,
-          template <typename> class QType = rtlog_SPSC>
+          template <typename> class QType = SingleRealtimeWriterQueueType>
 class Logger {
 public:
   using InternalLogData = detail::BasicLogData<LogData, MaxMessageLength>;
   using InternalQType = QType<InternalLogData>;
 
+  static_assert(MaxNumMessages > 0);
+  static_assert((MaxNumMessages & (MaxNumMessages - 1)) == 0,
+                "MaxNumMessages must be a power of 2");
   static_assert(
       detail::has_int_constructor_v<InternalQType>,
       "QType must have a constructor that takes an int - `QType(int)`");
